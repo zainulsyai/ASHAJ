@@ -14,12 +14,36 @@ import { getDirectChannelId } from '../chatData';
 
 export function ReportsView() {
   const { currentUser, transactions, rooms, openModal, showToast, roomCapacityRates = [], meetingRooms = [], breakfastMenuItems = [], deleteTransaction, batchDeleteGroup } = useAppContext();
-  const [activeTab, setActiveTab] = useState<'ALL' | 'ROMBONGAN' | 'INDIVIDU' | 'AULA'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'ROMBONGAN' | 'INDIVIDU' | 'AULA' | 'DIAGNOSTIC'>('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'NEWEST_BOOKING' | 'NEWEST_CHECKIN' | 'OLDEST_CHECKIN' | 'GUEST_NAME' | 'HIGHEST_PRICE'>('NEWEST_BOOKING');
   const [search, setSearch] = useState('');
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<Record<string, boolean>>({});
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; isGroup?: boolean } | null>(null);
+  const [diagnosticRows, setDiagnosticRows] = useState<any[]>([]);
+  const [isLoadingDiagnostic, setIsLoadingDiagnostic] = useState(false);
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
+  const [selectedDiagnosticRecord, setSelectedDiagnosticRecord] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'DIAGNOSTIC') {
+      setIsLoadingDiagnostic(true);
+      setDiagnosticError(null);
+      fetch('/api/pg/transactions')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && Array.isArray(data.data)) {
+            setDiagnosticRows(data.data);
+          } else {
+            setDiagnosticError(data.error || 'Gagal memuat data tabel transaksi dari database.');
+          }
+        })
+        .catch(err => {
+          setDiagnosticError(err?.message || 'Kesalahan jaringan saat memuat tabel transaksi.');
+        })
+        .finally(() => setIsLoadingDiagnostic(false));
+    }
+  }, [activeTab]);
 
   const canDeleteTx = currentUser?.role === 'Super Admin' || currentUser?.role === 'Admin' || isRecepRole(currentUser?.role);
 
@@ -300,6 +324,14 @@ export function ReportsView() {
               <i className="fa-solid fa-landmark"></i>
               <span>Ruang Pertemuan ({aulaList.length})</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('DIAGNOSTIC')}
+              className={`px-3 py-1.5 rounded-md transition flex items-center space-x-1.5 whitespace-nowrap ${activeTab === 'DIAGNOSTIC' ? 'bg-amber-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              <i className="fa-solid fa-stethoscope"></i>
+              <span>Diagnostik Database (Raw)</span>
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -344,6 +376,193 @@ export function ReportsView() {
             </select>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* DIAGNOSTIC VIEW: RAW DATABASE RECORDS INSPECTOR FOR TRANSACTIONS */}
+        {/* ========================================================================= */}
+        {activeTab === 'DIAGNOSTIC' && (
+          <div className="space-y-4 pt-2">
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <h4 className="font-bold text-amber-900 dark:text-amber-200 text-sm flex items-center gap-2">
+                  <i className="fa-solid fa-stethoscope text-amber-600"></i>
+                  <span>Diagnostik Tabel Database Transaksi (Raw Database Records)</span>
+                </h4>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                  Menampilkan data mentah langsung dari tabel <code className="font-mono bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded text-amber-900 dark:text-amber-100">transactions</code> di database PostgreSQL Aiven untuk mengidentifikasi kolom atau field yang bernilai <code className="font-mono text-rose-600 dark:text-rose-400">null</code>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLoadingDiagnostic(true);
+                  fetch('/api/pg/transactions')
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.success && Array.isArray(data.data)) {
+                        setDiagnosticRows(data.data);
+                        showToast('Data raw berhasil diperbarui dari Aiven PostgreSQL!', 'success');
+                      } else {
+                        setDiagnosticError(data.error || 'Gagal memuat.');
+                      }
+                    })
+                    .catch(err => setDiagnosticError(err?.message))
+                    .finally(() => setIsLoadingDiagnostic(false));
+                }}
+                disabled={isLoadingDiagnostic}
+                className="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg transition flex items-center space-x-1.5 shrink-0 cursor-pointer disabled:opacity-50 shadow-2xs"
+              >
+                <i className={`fa-solid ${isLoadingDiagnostic ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
+                <span>Muat Ulang Raw</span>
+              </button>
+            </div>
+
+            {isLoadingDiagnostic ? (
+              <div className="p-12 text-center text-slate-500 space-y-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                <i className="fa-solid fa-spinner fa-spin text-2xl text-amber-600"></i>
+                <p className="text-xs font-medium">Memuat record mentah dari tabel transactions...</p>
+              </div>
+            ) : diagnosticError ? (
+              <div className="p-4 bg-rose-50 border border-rose-300 text-rose-800 rounded-xl text-xs flex items-center space-x-2">
+                <i className="fa-solid fa-triangle-exclamation text-rose-600 text-base"></i>
+                <span>{diagnosticError}</span>
+              </div>
+            ) : diagnosticRows.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 italic bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl">
+                Tidak ada record ditemukan pada tabel <code className="font-mono">transactions</code> di database Aiven.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
+                  <span>Total Record Raw: {diagnosticRows.length} baris</span>
+                  <span>Klik baris untuk memeriksa detail JSON & null fields</span>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xs bg-white dark:bg-slate-800">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold text-[11px]">
+                        <th className="py-2.5 px-3">ID / UUID</th>
+                        <th className="py-2.5 px-3">Nomor Porsi</th>
+                        <th className="py-2.5 px-3">Nama Tamu / Pemesan</th>
+                        <th className="py-2.5 px-3">No. Kamar</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Audit Null Fields (Data JSONB)</th>
+                        <th className="py-2.5 px-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-slate-800 dark:text-slate-200">
+                      {diagnosticRows.map((row, idx) => {
+                        let parsedData: any = {};
+                        try {
+                          parsedData = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+                        } catch {
+                          parsedData = {};
+                        }
+
+                        // Inspect null or missing crucial fields
+                        const nullFields: string[] = [];
+                        const criticalKeys = ['guestName', 'roomNumber', 'totalAmount', 'paymentStatus', 'startDate', 'duration', 'status'];
+                        for (const k of criticalKeys) {
+                          if (row[k] === null || row[k] === undefined || row[k] === '' || parsedData[k] === null || parsedData[k] === undefined || parsedData[k] === '') {
+                            nullFields.push(k);
+                          }
+                        }
+
+                        return (
+                          <tr key={row.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td className="py-2.5 px-3 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400">{row.id || '-'}</td>
+                            <td className="py-2.5 px-3 font-mono font-semibold text-emerald-700 dark:text-emerald-300">{row.nomor_porsi || parsedData.nomorPorsi || '-'}</td>
+                            <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-slate-100">{row.guest_name || parsedData.guestName || '(Tanpa Nama)'}</td>
+                            <td className="py-2.5 px-3 font-mono font-bold text-purple-700 dark:text-purple-300">{row.room_number || parsedData.roomNumber || '-'}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                                {row.status || parsedData.status || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {nullFields.length === 0 ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                                  <i className="fa-solid fa-circle-check text-[10px]"></i>
+                                  <span>Lengkap (0 Null)</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-950/50 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800" title={`Field kosong/null: ${nullFields.join(', ')}`}>
+                                  <i className="fa-solid fa-triangle-exclamation text-[10px]"></i>
+                                  <span>Null: {nullFields.join(', ')}</span>
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDiagnosticRecord({ row, parsedData, nullFields })}
+                                className="px-2.5 py-1 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 text-white font-bold rounded-lg text-xs transition cursor-pointer"
+                              >
+                                Inspeksi JSON
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Inspeksi Record JSON Raw */}
+            {selectedDiagnosticRecord && (
+              <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in">
+                <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[85vh]">
+                  <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+                    <h5 className="font-bold text-sm flex items-center gap-2">
+                      <i className="fa-solid fa-code text-amber-400"></i>
+                      <span>Inspeksi Raw JSON & Null Fields: {selectedDiagnosticRecord.row.id}</span>
+                    </h5>
+                    <button
+                      onClick={() => setSelectedDiagnosticRecord(null)}
+                      className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                    >
+                      <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                  </div>
+                  <div className="p-5 space-y-4 overflow-y-auto text-xs flex-1">
+                    {selectedDiagnosticRecord.nullFields.length > 0 && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl space-y-1">
+                        <p className="font-bold flex items-center gap-1.5">
+                          <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                          <span>Field Bernilai Null / Kosong Terdeteksi:</span>
+                        </p>
+                        <p className="font-mono text-[11px]">{selectedDiagnosticRecord.nullFields.join(', ')}</p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block">Kolom Tabel Relasional Utama:</label>
+                      <pre className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-mono text-[11px] rounded-xl overflow-x-auto">
+                        {JSON.stringify(selectedDiagnosticRecord.row, null, 2)}
+                      </pre>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block">Payload Lengkap Data JSONB:</label>
+                      <pre className="p-3 bg-slate-900 text-emerald-300 font-mono text-[11px] rounded-xl overflow-x-auto">
+                        {JSON.stringify(selectedDiagnosticRecord.parsedData, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-slate-100 dark:bg-slate-800 flex justify-end">
+                    <button
+                      onClick={() => setSelectedDiagnosticRecord(null)}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl cursor-pointer"
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* BAGIAN 1: LAPORAN KHUSUS ROMBONGAN (GRUP) */}

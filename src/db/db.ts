@@ -3,15 +3,24 @@ const { Pool } = pkg;
 
 let currentPool: any = null;
 
+function isValidPostgresUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  return trimmed.startsWith('postgres://') || trimmed.startsWith('postgresql://');
+}
+
 export function getPool() {
-  const connectionString = process.env.DATABASE_URL || '';
-  if (!currentPool && connectionString) {
+  const connectionString = (process.env.DATABASE_URL || '').trim();
+  if (!isValidPostgresUrl(connectionString)) {
+    return null;
+  }
+  if (!currentPool) {
     currentPool = new Pool({
       connectionString,
       ssl: { rejectUnauthorized: false },
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
+      max: 5,                  // Dibatasi max 5 koneksi untuk plan Aiven free/small
+      idleTimeoutMillis: 10000, // Putus koneksi menganggur setelah 10 detik
+      connectionTimeoutMillis: 5000,
     });
     currentPool.on('error', (err: any) => {
       console.error('Unexpected error on idle PostgreSQL client:', err);
@@ -21,18 +30,18 @@ export function getPool() {
 }
 
 export async function query(text: string, params?: any[]) {
-  const connectionString = process.env.DATABASE_URL || '';
-  if (!connectionString) {
-    throw new Error('DATABASE_URL belum dikonfigurasi. Harap tentukan DATABASE_URL Aiven PostgreSQL di .env atau melalui panel Aiven.');
+  const connectionString = (process.env.DATABASE_URL || '').trim();
+  if (!isValidPostgresUrl(connectionString)) {
+    throw new Error('DATABASE_URL belum dikonfigurasi atau tidak valid. Harap tentukan DATABASE_URL Aiven PostgreSQL (postgres://...) di .env atau melalui panel Aiven.');
   }
   let pool = getPool();
   if (!pool) {
     currentPool = new Pool({
       connectionString,
       ssl: { rejectUnauthorized: false },
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
+      max: 5,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000,
     });
     pool = currentPool;
   }
@@ -44,7 +53,7 @@ export async function query(text: string, params?: any[]) {
     console.log('Executed query', { text: text.substring(0, 50), duration, rows: res.rowCount });
     return res;
   } finally {
-    client.release();
+    client.release(); // PENTING: Wajib melepas koneksi agar slot tidak habis!
   }
 }
 

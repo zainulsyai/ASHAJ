@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from "express";
 import path from "path";
 import fs from "fs";
@@ -99,7 +102,18 @@ async function startServer() {
   // Menggunakan Google Spreadsheet sebagai basis data utama aplikasi
   // =========================================================================
   const sheetsConfigFilePath = path.join(process.cwd(), "google_sheets_config.json");
+  const aivenConfigFilePath = path.join(process.cwd(), "aiven_config.json");
   const envFilePath = path.join(process.cwd(), ".env");
+
+  if (!process.env.DATABASE_URL && fs.existsSync(aivenConfigFilePath)) {
+    try {
+      const aivenCfg = JSON.parse(fs.readFileSync(aivenConfigFilePath, "utf-8"));
+      if (aivenCfg && aivenCfg.databaseUrl) {
+        process.env.DATABASE_URL = aivenCfg.databaseUrl;
+        updatePoolConfig(aivenCfg.databaseUrl);
+      }
+    } catch (_) {}
+  }
 
   function parseEnvForSheets(): { webAppUrl?: string; sheetId?: string; apiKey?: string } {
     try {
@@ -2363,79 +2377,490 @@ async function startServer() {
           value TEXT,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
         CREATE TABLE IF NOT EXISTS buildings (
           id VARCHAR(100) PRIMARY KEY,
           name VARCHAR(255),
+          code VARCHAR(100),
+          floors INTEGER,
+          total_rooms INTEGER,
+          capacity_desc VARCHAR(255),
+          category VARCHAR(50),
+          status VARCHAR(50),
+          description TEXT,
+          updated_at VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS floors INTEGER;
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS total_rooms INTEGER;
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS capacity_desc VARCHAR(255);
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS category VARCHAR(50);
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS description TEXT;
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE buildings ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE buildings ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS rooms (
           id VARCHAR(100) PRIMARY KEY,
           room_number VARCHAR(100),
           building VARCHAR(255),
-          capacity INTEGER,
+          building_id VARCHAR(100),
+          floor INTEGER,
+          type VARCHAR(100),
+          bed_type VARCHAR(100),
+          capacity VARCHAR(100),
+          capacity_number INTEGER,
+          price_per_night NUMERIC,
           status VARCHAR(50),
+          qc_status VARCHAR(50),
+          facilities TEXT,
+          notes TEXT,
+          active_tx_id VARCHAR(100),
+          active_maint_id VARCHAR(100),
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        DO $$ 
+        BEGIN 
+          BEGIN
+            ALTER TABLE rooms ALTER COLUMN capacity TYPE VARCHAR(100) USING capacity::TEXT;
+          EXCEPTION WHEN OTHERS THEN NULL;
+          END;
+        END $$;
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS room_number VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS building VARCHAR(255);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS building_id VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS floor INTEGER;
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS type VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS bed_type VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS capacity VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS capacity_number INTEGER;
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS price_per_night NUMERIC;
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS qc_status VARCHAR(50);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS facilities TEXT;
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS active_tx_id VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS active_maint_id VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE rooms ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE rooms ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS transactions (
           id VARCHAR(100) PRIMARY KEY,
-          nomor_porsi VARCHAR(100),
-          guest_name VARCHAR(255),
+          room_id VARCHAR(100),
           room_number VARCHAR(100),
+          building VARCHAR(100),
+          guest_name VARCHAR(255),
+          guest_type VARCHAR(50),
+          nik_ktp VARCHAR(50),
+          kloter VARCHAR(50),
+          phone VARCHAR(50),
+          email VARCHAR(100),
+          category VARCHAR(50),
           status VARCHAR(50),
+          start_date VARCHAR(50),
+          duration INTEGER,
+          duration_unit VARCHAR(50),
+          price_per_night NUMERIC,
+          total_amount NUMERIC,
+          payment_status VARCHAR(50),
+          payment_method VARCHAR(100),
+          payment_date VARCHAR(50),
+          payment_note TEXT,
+          kwitansi_no VARCHAR(100),
+          is_paid BOOLEAN,
+          paid_amount NUMERIC,
+          dp_amount NUMERIC,
+          remaining_amount NUMERIC,
+          is_group BOOLEAN,
+          group_id VARCHAR(100),
+          group_type VARCHAR(100),
+          group_name VARCHAR(255),
+          group_pic VARCHAR(255),
+          group_pic_phone VARCHAR(50),
+          total_pax INTEGER,
+          spk_number VARCHAR(100),
+          check_in_time VARCHAR(50),
+          check_out_time VARCHAR(50),
+          notes TEXT,
+          created_user VARCHAR(100),
+          created_at VARCHAR(100),
+          updated_at VARCHAR(100),
+          extended_count INTEGER,
+          nomor_porsi VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS room_id VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS room_number VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS building VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS guest_name VARCHAR(255);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS guest_type VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS nik_ktp VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS kloter VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS email VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS category VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS start_date VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS duration INTEGER;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS duration_unit VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS price_per_night NUMERIC;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total_amount NUMERIC;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_date VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_note TEXT;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS kwitansi_no VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_paid BOOLEAN;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS paid_amount NUMERIC;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS dp_amount NUMERIC;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS remaining_amount NUMERIC;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_group BOOLEAN;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS group_id VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS group_type VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS group_name VARCHAR(255);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS group_pic VARCHAR(255);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS group_pic_phone VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total_pax INTEGER;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS spk_number VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS check_in_time VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS check_out_time VARCHAR(50);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_user VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_at VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS extended_count INTEGER;
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS nomor_porsi VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE transactions ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE transactions ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS users (
           id VARCHAR(100) PRIMARY KEY,
           username VARCHAR(100),
           role VARCHAR(100),
           full_name VARCHAR(255),
+          department VARCHAR(100),
+          assigned_building VARCHAR(100),
+          phone VARCHAR(50),
+          password VARCHAR(255),
+          signature_url TEXT,
+          qr_code_url TEXT,
+          nip VARCHAR(100),
+          email VARCHAR(100),
+          status VARCHAR(50),
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_building VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS signature_url TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS qr_code_url TEXT;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS nip VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE users ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS maintenances (
           id VARCHAR(100) PRIMARY KEY,
+          room_id VARCHAR(100),
           room_number VARCHAR(100),
-          status VARCHAR(50),
+          building VARCHAR(100),
+          category VARCHAR(100),
+          issue TEXT,
+          description TEXT,
           urgency VARCHAR(50),
+          status VARCHAR(50),
+          technician VARCHAR(100),
+          assigned_technician_id VARCHAR(100),
+          assigned_technician_name VARCHAR(255),
+          technician_notes TEXT,
+          reporter VARCHAR(100),
+          report_time VARCHAR(100),
+          resolved_time VARCHAR(100),
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS room_id VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS room_number VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS building VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS issue TEXT;
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS description TEXT;
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS urgency VARCHAR(50);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS technician VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS assigned_technician_id VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS assigned_technician_name VARCHAR(255);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS technician_notes TEXT;
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS reporter VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS report_time VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS resolved_time VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE maintenances ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE maintenances ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS qc_inspections (
           id VARCHAR(100) PRIMARY KEY,
           room_number VARCHAR(100),
           inspector VARCHAR(255),
+          building VARCHAR(100),
+          inspection_date VARCHAR(100),
+          status VARCHAR(50),
+          score INTEGER,
+          notes TEXT,
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS room_number VARCHAR(100);
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS inspector VARCHAR(255);
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS building VARCHAR(100);
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS inspection_date VARCHAR(100);
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS score INTEGER;
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE qc_inspections ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE qc_inspections ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS work_sessions (
           id VARCHAR(100) PRIMARY KEY,
           user_id VARCHAR(100),
           user_name VARCHAR(255),
           data JSONB
         );
+        ALTER TABLE work_sessions ADD COLUMN IF NOT EXISTS user_id VARCHAR(100);
+        ALTER TABLE work_sessions ADD COLUMN IF NOT EXISTS user_name VARCHAR(255);
+        ALTER TABLE work_sessions ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE work_sessions ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE work_sessions ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS meeting_rooms (
           id VARCHAR(100) PRIMARY KEY,
           name VARCHAR(255),
+          code VARCHAR(100),
+          category VARCHAR(50),
+          building VARCHAR(100),
+          floor INTEGER,
+          capacity VARCHAR(100),
+          capacity_number INTEGER,
+          daily_rate NUMERIC,
+          session_rate NUMERIC,
+          status VARCHAR(50),
+          qc_status VARCHAR(50),
+          facilities TEXT,
+          description TEXT,
+          updated_at VARCHAR(100),
           data JSONB
         );
+        DO $$ 
+        BEGIN 
+          BEGIN
+            ALTER TABLE meeting_rooms ALTER COLUMN capacity TYPE VARCHAR(100) USING capacity::TEXT;
+          EXCEPTION WHEN OTHERS THEN NULL;
+          END;
+        END $$;
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS category VARCHAR(50);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS building VARCHAR(100);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS floor INTEGER;
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS capacity VARCHAR(100);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS capacity_number INTEGER;
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS daily_rate NUMERIC;
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS session_rate NUMERIC;
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS qc_status VARCHAR(50);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS facilities TEXT;
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS description TEXT;
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE meeting_rooms ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE meeting_rooms ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS breakfast_orders (
           id VARCHAR(100) PRIMARY KEY,
+          room_number VARCHAR(100),
+          building VARCHAR(100),
           guest_name VARCHAR(255),
+          phone VARCHAR(50),
+          transaction_id VARCHAR(100),
+          menu_name VARCHAR(255),
+          portions INTEGER,
+          days INTEGER,
+          start_date VARCHAR(50),
+          delivery_time VARCHAR(50),
+          status VARCHAR(50),
+          price_per_portion NUMERIC,
+          total_price NUMERIC,
+          notes TEXT,
+          created_at VARCHAR(100),
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS room_number VARCHAR(100);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS building VARCHAR(100);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS guest_name VARCHAR(255);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS menu_name VARCHAR(255);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS portions INTEGER;
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS days INTEGER;
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS start_date VARCHAR(50);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS delivery_time VARCHAR(50);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS price_per_portion NUMERIC;
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS total_price NUMERIC;
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS created_at VARCHAR(100);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE breakfast_orders ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE breakfast_orders ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS breakfast_menu_items (
           id VARCHAR(100) PRIMARY KEY,
           name VARCHAR(255),
+          category VARCHAR(100),
+          price NUMERIC,
+          description TEXT,
+          is_available BOOLEAN,
+          allergens VARCHAR(255),
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS category VARCHAR(100);
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS price NUMERIC;
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS description TEXT;
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS is_available BOOLEAN;
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS allergens VARCHAR(255);
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE breakfast_menu_items ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE breakfast_menu_items ALTER COLUMN code DROP NOT NULL;
+
+        CREATE TABLE IF NOT EXISTS room_capacity_rates (
+          id VARCHAR(100) PRIMARY KEY,
+          room_type VARCHAR(100),
+          bed_type VARCHAR(100),
+          capacity_pax INTEGER,
+          price_per_night NUMERIC,
+          description TEXT,
+          facilities TEXT,
+          is_active BOOLEAN,
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
+          data JSONB
+        );
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS room_type VARCHAR(100);
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS bed_type VARCHAR(100);
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS capacity_pax INTEGER;
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS price_per_night NUMERIC;
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS description TEXT;
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS facilities TEXT;
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS is_active BOOLEAN;
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE room_capacity_rates ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE room_capacity_rates ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS audit_logs (
           id VARCHAR(100) PRIMARY KEY,
           action VARCHAR(255),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS action VARCHAR(255);
+        ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS data JSONB;
+        ALTER TABLE audit_logs ALTER COLUMN code DROP NOT NULL;
+
         CREATE TABLE IF NOT EXISTS cleaning_logs (
           id VARCHAR(100) PRIMARY KEY,
           room_number VARCHAR(100),
+          building VARCHAR(100),
+          petugas_id VARCHAR(100),
+          petugas_name VARCHAR(255),
+          timestamp VARCHAR(100),
+          status VARCHAR(50),
+          notes TEXT,
+          photo_url TEXT,
+          updated_at VARCHAR(100),
+          code VARCHAR(100),
           data JSONB
         );
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS room_number VARCHAR(100);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS building VARCHAR(100);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS petugas_id VARCHAR(100);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS petugas_name VARCHAR(255);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS timestamp VARCHAR(100);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS photo_url TEXT;
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS updated_at VARCHAR(100);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+        ALTER TABLE cleaning_logs ADD COLUMN IF NOT EXISTS data JSONB;
+
+        -- Migrasikan seluruh kolom TIMESTAMP/DATE pada seluruh tabel operasional ke VARCHAR(100)
+        -- agar aman menerima string tanggal/waktu ISO, format kustom, serta string kosong "" tanpa error DateTimeParseError
+        DO $$ 
+        DECLARE
+          r RECORD;
+        BEGIN 
+          FOR r IN (
+            SELECT table_name, column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+              AND table_name NOT IN ('app_kv')
+              AND (data_type LIKE '%timestamp%' OR data_type LIKE '%date%')
+          ) LOOP
+            BEGIN
+              EXECUTE format('ALTER TABLE %I ALTER COLUMN %I TYPE VARCHAR(100) USING %I::TEXT', r.table_name, r.column_name, r.column_name);
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END;
+          END LOOP;
+        END $$;
+
+        -- Hapus foreign key constraint yang kaku agar operasi sinkronisasi batch/CRUD tidak tertolak jika urutan data berbeda
+        ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_room_id_fkey;
+        ALTER TABLE maintenances DROP CONSTRAINT IF EXISTS maintenances_room_id_fkey;
+        ALTER TABLE qc_inspections DROP CONSTRAINT IF EXISTS qc_inspections_room_id_fkey;
+        ALTER TABLE cleaning_logs DROP CONSTRAINT IF EXISTS cleaning_logs_room_id_fkey;
+        ALTER TABLE cleaning_logs DROP CONSTRAINT IF EXISTS cleaning_logs_meeting_room_id_fkey;
+        ALTER TABLE breakfast_orders DROP CONSTRAINT IF EXISTS breakfast_orders_transaction_id_fkey;
+        ALTER TABLE breakfast_orders DROP CONSTRAINT IF EXISTS breakfast_orders_menu_id_fkey;
+        ALTER TABLE work_sessions DROP CONSTRAINT IF EXISTS work_sessions_user_id_fkey;
+        ALTER TABLE rooms DROP CONSTRAINT IF EXISTS rooms_building_id_fkey;
       `);
+
+      // Helper aman parsing tanggal/waktu: jika string kosong atau "-", kembalikan null untuk mencegah error PostgreSQL
+      const safeDateOrNull = (v: any): string | null => {
+        if (v === null || v === undefined) return null;
+        const s = String(v).trim();
+        return s === '' || s === '-' || s === 'null' || s === 'undefined' ? null : s;
+      };
 
       const jsonStr = JSON.stringify(db);
       await pgQuery(`
@@ -2444,78 +2869,589 @@ async function startServer() {
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;
       `, [jsonStr]);
 
+      // 1. BUILDINGS
       if (Array.isArray(db.buildings)) {
+        const bIds = db.buildings.map((b: any) => String(b.id || b.name)).filter(Boolean);
+        if (bIds.length > 0) {
+          await pgQuery(`DELETE FROM buildings WHERE id NOT IN (${bIds.map((_, i) => `$${i + 1}`).join(', ')})`, bIds).catch(() => {});
+        }
         for (const b of db.buildings) {
           const id = b.id || b.name;
           if (id) {
             await pgQuery(`
-              INSERT INTO buildings (id, name, data) VALUES ($1, $2, $3)
-              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data;
-            `, [String(id), b.name || String(id), JSON.stringify(b)]);
+              INSERT INTO buildings (
+                id, name, code, floors, total_rooms, capacity_desc, category, status, description, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ON CONFLICT (id) DO UPDATE SET 
+                name = EXCLUDED.name, 
+                code = EXCLUDED.code,
+                floors = EXCLUDED.floors,
+                total_rooms = EXCLUDED.total_rooms,
+                capacity_desc = EXCLUDED.capacity_desc,
+                category = EXCLUDED.category,
+                status = EXCLUDED.status,
+                description = EXCLUDED.description,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              b.name || String(id),
+              b.code || '',
+              Number(b.floors) || 1,
+              Number(b.totalRooms ?? b.total_rooms) || 0,
+              b.capacityDesc || b.capacity_desc || '',
+              b.category || 'PENGINAPAN',
+              b.status || 'AKTIF',
+              b.description || '',
+              b.updatedAt || b.updated_at || new Date().toISOString(),
+              JSON.stringify(b)
+            ]);
           }
         }
       }
 
+      // 2. ROOMS
       if (Array.isArray(db.rooms)) {
+        let roomCapIsInteger = false;
+        try {
+          const colCheck = await pgQuery(`SELECT data_type FROM information_schema.columns WHERE table_name = 'rooms' AND column_name = 'capacity'`);
+          if (colCheck.rows.length > 0 && String(colCheck.rows[0].data_type).toLowerCase().includes('int')) {
+            await pgQuery(`ALTER TABLE rooms ALTER COLUMN capacity TYPE VARCHAR(100) USING capacity::TEXT`).catch(() => {
+              roomCapIsInteger = true;
+            });
+          }
+        } catch (_) {}
+
+        const rIds = db.rooms.map((r: any) => String(r.id || r.roomNumber)).filter(Boolean);
+        if (rIds.length > 0) {
+          await pgQuery(`DELETE FROM rooms WHERE id NOT IN (${rIds.map((_, i) => `$${i + 1}`).join(', ')})`, rIds).catch(() => {});
+        }
         for (const r of db.rooms) {
           const id = r.id || r.roomNumber || r.number;
           if (id) {
+            const facStr = Array.isArray(r.facilities) ? r.facilities.join(', ') : (r.facilities || '');
+            const capNum = Number(r.capacityNumber ?? r.capacity_number) || parseInt(String(r.capacity).replace(/\D/g, '')) || 2;
+            const capVal = roomCapIsInteger ? capNum : String(r.capacity || `${capNum} Orang`);
+
+            // Validasi foreign key building_id: harus NULL jika tidak ada gedung yang cocok di database
+            let bId: string | null = (r.buildingId || r.building_id || '').trim() || null;
+            if (!bId && r.building && Array.isArray(db.buildings)) {
+              const foundB = db.buildings.find((b: any) => b.name === r.building || b.id === r.building);
+              if (foundB) bId = String(foundB.id || foundB.name).trim() || null;
+            }
+            if (bId) {
+              const chkBld = await pgQuery(`SELECT id FROM buildings WHERE id = $1 LIMIT 1`, [bId]);
+              if (chkBld.rows.length === 0) bId = null;
+            }
+
             await pgQuery(`
-              INSERT INTO rooms (id, room_number, building, capacity, status, data) VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, building = EXCLUDED.building, capacity = EXCLUDED.capacity, status = EXCLUDED.status, data = EXCLUDED.data;
-            `, [String(id), r.roomNumber || r.number || '', r.building || '', Number(r.capacity) || 0, r.status || 'Tersedia', JSON.stringify(r)]);
+              INSERT INTO rooms (
+                id, room_number, building, building_id, floor, type, bed_type, capacity, capacity_number,
+                price_per_night, status, qc_status, facilities, notes, active_tx_id, active_maint_id, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+              ON CONFLICT (id) DO UPDATE SET 
+                room_number = EXCLUDED.room_number, 
+                building = EXCLUDED.building,
+                building_id = EXCLUDED.building_id,
+                floor = EXCLUDED.floor,
+                type = EXCLUDED.type,
+                bed_type = EXCLUDED.bed_type,
+                capacity = EXCLUDED.capacity,
+                capacity_number = EXCLUDED.capacity_number,
+                price_per_night = EXCLUDED.price_per_night,
+                status = EXCLUDED.status,
+                qc_status = EXCLUDED.qc_status,
+                facilities = EXCLUDED.facilities,
+                notes = EXCLUDED.notes,
+                active_tx_id = EXCLUDED.active_tx_id,
+                active_maint_id = EXCLUDED.active_maint_id,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              r.roomNumber || r.number || '',
+              r.building || '',
+              bId,
+              Number(r.floor) || 1,
+              r.type || 'Standar',
+              r.bedType || r.bed_type || '',
+              capVal,
+              capNum,
+              Number(r.pricePerNight ?? r.price_per_night) || 0,
+              r.status || 'KOSONG',
+              r.qcStatus || r.qc_status || 'LOLOS_QC',
+              facStr,
+              r.notes || '',
+              r.activeTxId || r.active_tx_id || null,
+              r.activeMaintId || r.active_maint_id || null,
+              r.updatedAt || r.updated_at || new Date().toISOString(),
+              JSON.stringify(r)
+            ]);
           }
         }
       }
 
+      // 3. TRANSACTIONS (SELURUH KOLOM OPERASIONAL LENGKAP)
       if (Array.isArray(db.transactions)) {
+        const tIds = db.transactions.map((t: any) => String(t.id)).filter(Boolean);
+        if (tIds.length > 0) {
+          await pgQuery(`DELETE FROM transactions WHERE id NOT IN (${tIds.map((_, i) => `$${i + 1}`).join(', ')})`, tIds).catch(() => {});
+        }
         for (const t of db.transactions) {
           const id = t.id || t.transactionId;
           if (id) {
             await pgQuery(`
-              INSERT INTO transactions (id, nomor_porsi, guest_name, room_number, status, data) VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT (id) DO UPDATE SET nomor_porsi = EXCLUDED.nomor_porsi, guest_name = EXCLUDED.guest_name, room_number = EXCLUDED.room_number, status = EXCLUDED.status, data = EXCLUDED.data;
-            `, [String(id), t.nomorPorsi || t.nomor_porsi || '', t.guestName || t.namaJemaah || '', t.roomNumber || '', t.status || '', JSON.stringify(t)]);
+              INSERT INTO transactions (
+                id, room_id, room_number, building, guest_name, guest_type, nik_ktp, kloter, phone, email,
+                category, status, start_date, duration, duration_unit, price_per_night, total_amount,
+                payment_status, payment_method, payment_date, payment_note, kwitansi_no, is_paid, paid_amount,
+                dp_amount, remaining_amount, is_group, group_id, group_type, group_name, group_pic, group_pic_phone,
+                total_pax, spk_number, check_in_time, check_out_time, notes, created_user, created_at, updated_at,
+                extended_count, nomor_porsi, data
+              ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17,
+                $18, $19, $20, $21, $22, $23, $24,
+                $25, $26, $27, $28, $29, $30, $31, $32,
+                $33, $34, $35, $36, $37, $38, $39, $40,
+                $41, $42, $43
+              )
+              ON CONFLICT (id) DO UPDATE SET 
+                room_id = EXCLUDED.room_id,
+                room_number = EXCLUDED.room_number,
+                building = EXCLUDED.building,
+                guest_name = EXCLUDED.guest_name,
+                guest_type = EXCLUDED.guest_type,
+                nik_ktp = EXCLUDED.nik_ktp,
+                kloter = EXCLUDED.kloter,
+                phone = EXCLUDED.phone,
+                email = EXCLUDED.email,
+                category = EXCLUDED.category,
+                status = EXCLUDED.status,
+                start_date = EXCLUDED.start_date,
+                duration = EXCLUDED.duration,
+                duration_unit = EXCLUDED.duration_unit,
+                price_per_night = EXCLUDED.price_per_night,
+                total_amount = EXCLUDED.total_amount,
+                payment_status = EXCLUDED.payment_status,
+                payment_method = EXCLUDED.payment_method,
+                payment_date = EXCLUDED.payment_date,
+                payment_note = EXCLUDED.payment_note,
+                kwitansi_no = EXCLUDED.kwitansi_no,
+                is_paid = EXCLUDED.is_paid,
+                paid_amount = EXCLUDED.paid_amount,
+                dp_amount = EXCLUDED.dp_amount,
+                remaining_amount = EXCLUDED.remaining_amount,
+                is_group = EXCLUDED.is_group,
+                group_id = EXCLUDED.group_id,
+                group_type = EXCLUDED.group_type,
+                group_name = EXCLUDED.group_name,
+                group_pic = EXCLUDED.group_pic,
+                group_pic_phone = EXCLUDED.group_pic_phone,
+                total_pax = EXCLUDED.total_pax,
+                spk_number = EXCLUDED.spk_number,
+                check_in_time = EXCLUDED.check_in_time,
+                check_out_time = EXCLUDED.check_out_time,
+                notes = EXCLUDED.notes,
+                created_user = EXCLUDED.created_user,
+                created_at = EXCLUDED.created_at,
+                updated_at = EXCLUDED.updated_at,
+                extended_count = EXCLUDED.extended_count,
+                nomor_porsi = EXCLUDED.nomor_porsi,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              t.roomId || t.room_id || '',
+              t.roomNumber || t.room_number || '',
+              t.building || '',
+              t.guestName || t.namaJemaah || t.guest_name || '',
+              t.guestType || t.guest_type || (t.isGroup ? 'ROMBONGAN' : 'INDIVIDU'),
+              t.nikKtp || t.nik_ktp || '',
+              t.kloter || '',
+              t.phone || '',
+              t.email || '',
+              t.category || 'INDIVIDU',
+              t.status || 'TERISI',
+              safeDateOrNull(t.startDate || t.start_date),
+              Number(t.duration) || 1,
+              t.durationUnit || t.duration_unit || 'Malam',
+              Number(t.pricePerNight ?? t.price_per_night) || 0,
+              Number(t.totalAmount ?? t.total_amount) || 0,
+              t.paymentStatus || t.payment_status || 'LUNAS',
+              t.paymentMethod || t.payment_method || '',
+              safeDateOrNull(t.paymentDate || t.payment_date),
+              t.paymentNote || t.payment_note || '',
+              t.kwitansiNo || t.kwitansi_no || '',
+              Boolean(t.isPaid ?? t.is_paid),
+              Number(t.paidAmount ?? t.paid_amount) || 0,
+              Number(t.dpAmount ?? t.dp_amount) || 0,
+              Number(t.remainingAmount ?? t.remaining_amount) || 0,
+              Boolean(t.isGroup ?? t.is_group),
+              t.groupId || t.group_id || '',
+              t.groupType || t.group_type || '',
+              t.groupName || t.group_name || '',
+              t.groupPic || t.group_pic || '',
+              t.groupPicPhone || t.group_pic_phone || '',
+              Number(t.totalPax ?? t.total_pax) || 0,
+              t.spkNumber || t.spk_number || '',
+              safeDateOrNull(t.checkInTime || t.check_in_time),
+              safeDateOrNull(t.checkOutTime || t.check_out_time),
+              t.notes || '',
+              t.createdUser || t.created_user || 'Petugas',
+              safeDateOrNull(t.createdAt || t.created_at) || new Date().toISOString(),
+              safeDateOrNull(t.updatedAt || t.updated_at) || new Date().toISOString(),
+              Number(t.extendedCount ?? t.extended_count) || 0,
+              t.nomorPorsi || t.nomor_porsi || '',
+              JSON.stringify(t)
+            ]);
           }
         }
       }
 
+      // 4. USERS
       if (Array.isArray(db.users)) {
+        const uIds = db.users.map((u: any) => String(u.id || u.username)).filter(Boolean);
+        if (uIds.length > 0) {
+          await pgQuery(`DELETE FROM users WHERE id NOT IN (${uIds.map((_, i) => `$${i + 1}`).join(', ')})`, uIds).catch(() => {});
+        }
         for (const u of db.users) {
           const id = u.id || u.username;
           if (id) {
             await pgQuery(`
-              INSERT INTO users (id, username, role, full_name, data) VALUES ($1, $2, $3, $4, $5)
-              ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, role = EXCLUDED.role, full_name = EXCLUDED.full_name, data = EXCLUDED.data;
-            `, [String(id), u.username || '', u.role || '', u.fullName || u.nama || '', JSON.stringify(u)]);
+              INSERT INTO users (
+                id, username, role, full_name, department, assigned_building, phone, password, signature_url, qr_code_url, nip, email, status, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+              ON CONFLICT (id) DO UPDATE SET 
+                username = EXCLUDED.username, 
+                role = EXCLUDED.role, 
+                full_name = EXCLUDED.full_name,
+                department = EXCLUDED.department,
+                assigned_building = EXCLUDED.assigned_building,
+                phone = EXCLUDED.phone,
+                password = EXCLUDED.password,
+                signature_url = EXCLUDED.signature_url,
+                qr_code_url = EXCLUDED.qr_code_url,
+                nip = EXCLUDED.nip,
+                email = EXCLUDED.email,
+                status = EXCLUDED.status,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              u.username || '',
+              u.role || '',
+              u.fullName || u.nama || u.full_name || '',
+              u.department || 'Operasional',
+              u.assignedBuilding || u.assigned_building || 'Semua Gedung',
+              u.phone || '-',
+              u.password || '12345',
+              u.signatureUrl || u.signature_url || '',
+              u.qrCodeUrl || u.qr_code_url || '',
+              u.nip || '',
+              u.email || '',
+              u.status || 'Aktif',
+              u.updatedAt || u.updated_at || new Date().toISOString(),
+              JSON.stringify(u)
+            ]);
           }
         }
       }
 
+      // 5. MAINTENANCES
       if (Array.isArray(db.maintenances)) {
+        const mIds = db.maintenances.map((m: any) => String(m.id)).filter(Boolean);
+        if (mIds.length > 0) {
+          await pgQuery(`DELETE FROM maintenances WHERE id NOT IN (${mIds.map((_, i) => `$${i + 1}`).join(', ')})`, mIds).catch(() => {});
+        }
         for (const m of db.maintenances) {
           const id = m.id;
           if (id) {
             await pgQuery(`
-              INSERT INTO maintenances (id, room_number, status, urgency, data) VALUES ($1, $2, $3, $4, $5)
-              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, status = EXCLUDED.status, urgency = EXCLUDED.urgency, data = EXCLUDED.data;
-            `, [String(id), m.roomNumber || '', m.status || '', m.urgency || '', JSON.stringify(m)]);
+              INSERT INTO maintenances (
+                id, room_id, room_number, building, category, issue, description, urgency, status,
+                technician, assigned_technician_id, assigned_technician_name, technician_notes,
+                reporter, report_time, resolved_time, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+              ON CONFLICT (id) DO UPDATE SET 
+                room_id = EXCLUDED.room_id,
+                room_number = EXCLUDED.room_number,
+                building = EXCLUDED.building,
+                category = EXCLUDED.category,
+                issue = EXCLUDED.issue,
+                description = EXCLUDED.description,
+                urgency = EXCLUDED.urgency,
+                status = EXCLUDED.status,
+                technician = EXCLUDED.technician,
+                assigned_technician_id = EXCLUDED.assigned_technician_id,
+                assigned_technician_name = EXCLUDED.assigned_technician_name,
+                technician_notes = EXCLUDED.technician_notes,
+                reporter = EXCLUDED.reporter,
+                report_time = EXCLUDED.report_time,
+                resolved_time = EXCLUDED.resolved_time,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              m.roomId || m.room_id || '',
+              m.roomNumber || m.room_number || '',
+              m.building || '',
+              m.category || 'Fasilitas Kamar',
+              m.issue || '',
+              m.description || m.issue || '',
+              m.urgency || 'SEDANG',
+              m.status || 'MENUNGGU_PENUGASAN',
+              m.technician || 'Belum Ditugaskan',
+              m.assignedTechnicianId || m.assigned_technician_id || '',
+              m.assignedTechnicianName || m.assigned_technician_name || '',
+              m.technicianNotes || m.technician_notes || '',
+              m.reporter || 'Resepsionis',
+              safeDateOrNull(m.reportTime || m.report_time) || new Date().toISOString(),
+              safeDateOrNull(m.resolvedTime || m.resolved_time),
+              safeDateOrNull(m.updatedAt || m.updated_at) || new Date().toISOString(),
+              JSON.stringify(m)
+            ]);
           }
         }
       }
 
+      // 6. QC INSPECTIONS
       if (Array.isArray(db.qcInspections)) {
+        const qIds = db.qcInspections.map((q: any) => String(q.id)).filter(Boolean);
+        if (qIds.length > 0) {
+          await pgQuery(`DELETE FROM qc_inspections WHERE id NOT IN (${qIds.map((_, i) => `$${i + 1}`).join(', ')})`, qIds).catch(() => {});
+        }
         for (const qc of db.qcInspections) {
           const id = qc.id;
           if (id) {
             await pgQuery(`
-              INSERT INTO qc_inspections (id, room_number, inspector, data) VALUES ($1, $2, $3, $4)
-              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, inspector = EXCLUDED.inspector, data = EXCLUDED.data;
-            `, [String(id), qc.roomNumber || '', qc.inspector || '', JSON.stringify(qc)]);
+              INSERT INTO qc_inspections (
+                id, room_number, inspector, building, inspection_date, status, score, notes, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              ON CONFLICT (id) DO UPDATE SET 
+                room_number = EXCLUDED.room_number, 
+                inspector = EXCLUDED.inspector,
+                building = EXCLUDED.building,
+                inspection_date = EXCLUDED.inspection_date,
+                status = EXCLUDED.status,
+                score = EXCLUDED.score,
+                notes = EXCLUDED.notes,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              qc.roomNumber || qc.room_number || '',
+              qc.inspector || '',
+              qc.building || '',
+              safeDateOrNull(qc.inspectionDate || qc.inspection_date) || new Date().toISOString(),
+              qc.status || 'LOLOS_QC',
+              Number(qc.score) || 100,
+              qc.notes || '',
+              safeDateOrNull(qc.updatedAt || qc.updated_at) || new Date().toISOString(),
+              JSON.stringify(qc)
+            ]);
           }
         }
       }
 
+      // 7. MEETING ROOMS (AULA / SERBAGUNA)
+      if (Array.isArray(db.meetingRooms)) {
+        let mrCapIsInteger = false;
+        try {
+          const colCheck = await pgQuery(`SELECT data_type FROM information_schema.columns WHERE table_name = 'meeting_rooms' AND column_name = 'capacity'`);
+          if (colCheck.rows.length > 0 && String(colCheck.rows[0].data_type).toLowerCase().includes('int')) {
+            await pgQuery(`ALTER TABLE meeting_rooms ALTER COLUMN capacity TYPE VARCHAR(100) USING capacity::TEXT`).catch(() => {
+              mrCapIsInteger = true;
+            });
+          }
+        } catch (_) {}
+
+        const mrIds = db.meetingRooms.map((mr: any) => String(mr.id)).filter(Boolean);
+        if (mrIds.length > 0) {
+          await pgQuery(`DELETE FROM meeting_rooms WHERE id NOT IN (${mrIds.map((_, i) => `$${i + 1}`).join(', ')})`, mrIds).catch(() => {});
+        }
+        for (const mr of db.meetingRooms) {
+          const id = mr.id;
+          if (id) {
+            const facStr = Array.isArray(mr.facilities) ? mr.facilities.join(', ') : (mr.facilities || '');
+            const capNum = Number(mr.capacityNumber ?? mr.capacity_number) || parseInt(String(mr.capacity).replace(/\D/g, '')) || 100;
+            const capVal = mrCapIsInteger ? capNum : String(mr.capacity || `${capNum} Orang`);
+            await pgQuery(`
+              INSERT INTO meeting_rooms (
+                id, name, code, category, building, floor, capacity, capacity_number, daily_rate, session_rate,
+                status, qc_status, facilities, description, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+              ON CONFLICT (id) DO UPDATE SET 
+                name = EXCLUDED.name,
+                code = EXCLUDED.code,
+                category = EXCLUDED.category,
+                building = EXCLUDED.building,
+                floor = EXCLUDED.floor,
+                capacity = EXCLUDED.capacity,
+                capacity_number = EXCLUDED.capacity_number,
+                daily_rate = EXCLUDED.daily_rate,
+                session_rate = EXCLUDED.session_rate,
+                status = EXCLUDED.status,
+                qc_status = EXCLUDED.qc_status,
+                facilities = EXCLUDED.facilities,
+                description = EXCLUDED.description,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              mr.name || '',
+              mr.code || '',
+              mr.category || 'AULA',
+              mr.building || '',
+              Number(mr.floor) || 1,
+              capVal,
+              capNum,
+              Number(mr.dailyRate ?? mr.daily_rate) || 0,
+              Number(mr.sessionRate ?? mr.session_rate) || 0,
+              mr.status || 'TERSEDIA',
+              mr.qcStatus || mr.qc_status || 'LOLOS_QC',
+              facStr,
+              mr.description || '',
+              mr.updatedAt || mr.updated_at || new Date().toISOString(),
+              JSON.stringify(mr)
+            ]);
+          }
+        }
+      }
+
+      // 8. BREAKFAST ORDERS
+      if (Array.isArray(db.breakfastOrders)) {
+        const boIds = db.breakfastOrders.map((bo: any) => String(bo.id)).filter(Boolean);
+        if (boIds.length > 0) {
+          await pgQuery(`DELETE FROM breakfast_orders WHERE id NOT IN (${boIds.map((_, i) => `$${i + 1}`).join(', ')})`, boIds).catch(() => {});
+        }
+        for (const bo of db.breakfastOrders) {
+          const id = bo.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO breakfast_orders (
+                id, room_number, building, guest_name, phone, transaction_id, menu_name, portions,
+                days, start_date, delivery_time, status, price_per_portion, total_price, notes, created_at, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+              ON CONFLICT (id) DO UPDATE SET 
+                room_number = EXCLUDED.room_number,
+                building = EXCLUDED.building,
+                guest_name = EXCLUDED.guest_name,
+                phone = EXCLUDED.phone,
+                transaction_id = EXCLUDED.transaction_id,
+                menu_name = EXCLUDED.menu_name,
+                portions = EXCLUDED.portions,
+                days = EXCLUDED.days,
+                start_date = EXCLUDED.start_date,
+                delivery_time = EXCLUDED.delivery_time,
+                status = EXCLUDED.status,
+                price_per_portion = EXCLUDED.price_per_portion,
+                total_price = EXCLUDED.total_price,
+                notes = EXCLUDED.notes,
+                created_at = EXCLUDED.created_at,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              bo.roomNumber || bo.room_number || '',
+              bo.building || '',
+              bo.guestName || bo.namaPemesan || bo.guest_name || '',
+              bo.phone || '',
+              bo.transactionId || bo.transaction_id || '',
+              bo.menuName || bo.menu_name || '',
+              Number(bo.portions) || 1,
+              Number(bo.days) || 1,
+              safeDateOrNull(bo.startDate || bo.start_date),
+              bo.deliveryTime || bo.delivery_time || '06:30',
+              bo.status || 'MENUNGGU',
+              Number(bo.pricePerPortion ?? bo.price_per_portion) || 0,
+              Number(bo.totalPrice ?? bo.total_price) || 0,
+              bo.notes || '',
+              safeDateOrNull(bo.createdAt || bo.created_at) || new Date().toISOString(),
+              safeDateOrNull(bo.updatedAt || bo.updated_at) || new Date().toISOString(),
+              JSON.stringify(bo)
+            ]);
+          }
+        }
+      }
+
+      // 9. BREAKFAST MENU ITEMS
+      if (Array.isArray(db.breakfastMenuItems)) {
+        const bmiIds = db.breakfastMenuItems.map((bmi: any) => String(bmi.id)).filter(Boolean);
+        if (bmiIds.length > 0) {
+          await pgQuery(`DELETE FROM breakfast_menu_items WHERE id NOT IN (${bmiIds.map((_, i) => `$${i + 1}`).join(', ')})`, bmiIds).catch(() => {});
+        }
+        for (const bmi of db.breakfastMenuItems) {
+          const id = bmi.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO breakfast_menu_items (
+                id, name, category, price, description, is_available, allergens, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+              ON CONFLICT (id) DO UPDATE SET 
+                name = EXCLUDED.name,
+                category = EXCLUDED.category,
+                price = EXCLUDED.price,
+                description = EXCLUDED.description,
+                is_available = EXCLUDED.is_available,
+                allergens = EXCLUDED.allergens,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              bmi.name || '',
+              bmi.category || 'MAKANAN_BERAT',
+              Number(bmi.price) || 0,
+              bmi.description || '',
+              Boolean(bmi.isAvailable ?? bmi.is_available ?? true),
+              bmi.allergens || '',
+              bmi.updatedAt || bmi.updated_at || new Date().toISOString(),
+              JSON.stringify(bmi)
+            ]);
+          }
+        }
+      }
+
+      // 10. ROOM CAPACITY RATES
+      if (Array.isArray(db.roomCapacityRates)) {
+        const rcrIds = db.roomCapacityRates.map((rcr: any) => String(rcr.id)).filter(Boolean);
+        if (rcrIds.length > 0) {
+          await pgQuery(`DELETE FROM room_capacity_rates WHERE id NOT IN (${rcrIds.map((_, i) => `$${i + 1}`).join(', ')})`, rcrIds).catch(() => {});
+        }
+        for (const rcr of db.roomCapacityRates) {
+          const id = rcr.id;
+          if (id) {
+            const facStr = Array.isArray(rcr.facilities) ? rcr.facilities.join(', ') : (rcr.facilities || '');
+            await pgQuery(`
+              INSERT INTO room_capacity_rates (
+                id, room_type, bed_type, capacity_pax, price_per_night, description, facilities, is_active, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              ON CONFLICT (id) DO UPDATE SET 
+                room_type = EXCLUDED.room_type,
+                bed_type = EXCLUDED.bed_type,
+                capacity_pax = EXCLUDED.capacity_pax,
+                price_per_night = EXCLUDED.price_per_night,
+                description = EXCLUDED.description,
+                facilities = EXCLUDED.facilities,
+                is_active = EXCLUDED.is_active,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              rcr.roomType || rcr.room_type || '',
+              rcr.bedType || rcr.bed_type || '',
+              Number(rcr.capacityPax ?? rcr.capacity_pax) || 2,
+              Number(rcr.pricePerNight ?? rcr.price_per_night) || 0,
+              rcr.description || '',
+              facStr,
+              Boolean(rcr.isActive ?? rcr.is_active ?? true),
+              rcr.updatedAt || rcr.updated_at || new Date().toISOString(),
+              JSON.stringify(rcr)
+            ]);
+          }
+        }
+      }
+
+      // 11. WORK SESSIONS
       if (Array.isArray(db.workSessions)) {
         for (const ws of db.workSessions) {
           const id = ws.id;
@@ -2523,49 +3459,14 @@ async function startServer() {
             await pgQuery(`
               INSERT INTO work_sessions (id, user_id, user_name, data) VALUES ($1, $2, $3, $4)
               ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, user_name = EXCLUDED.user_name, data = EXCLUDED.data;
-            `, [String(id), ws.userId || '', ws.userName || '', JSON.stringify(ws)]);
+            `, [String(id), ws.userId || ws.user_id || '', ws.userName || ws.user_name || '', JSON.stringify(ws)]);
           }
         }
       }
 
-      if (Array.isArray(db.meetingRooms)) {
-        for (const mr of db.meetingRooms) {
-          const id = mr.id;
-          if (id) {
-            await pgQuery(`
-              INSERT INTO meeting_rooms (id, name, data) VALUES ($1, $2, $3)
-              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data;
-            `, [String(id), mr.name || '', JSON.stringify(mr)]);
-          }
-        }
-      }
-
-      if (Array.isArray(db.breakfastOrders)) {
-        for (const bo of db.breakfastOrders) {
-          const id = bo.id;
-          if (id) {
-            await pgQuery(`
-              INSERT INTO breakfast_orders (id, guest_name, data) VALUES ($1, $2, $3)
-              ON CONFLICT (id) DO UPDATE SET guest_name = EXCLUDED.guest_name, data = EXCLUDED.data;
-            `, [String(id), bo.guestName || bo.namaPemesan || '', JSON.stringify(bo)]);
-          }
-        }
-      }
-
-      if (Array.isArray(db.breakfastMenuItems)) {
-        for (const bmi of db.breakfastMenuItems) {
-          const id = bmi.id;
-          if (id) {
-            await pgQuery(`
-              INSERT INTO breakfast_menu_items (id, name, data) VALUES ($1, $2, $3)
-              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data;
-            `, [String(id), bmi.name || '', JSON.stringify(bmi)]);
-          }
-        }
-      }
-
+      // 12. AUDIT LOGS
       if (Array.isArray(db.auditLogs)) {
-        for (const al of db.auditLogs) {
+        for (const al of db.auditLogs.slice(0, 150)) {
           const id = al.id;
           if (id) {
             await pgQuery(`
@@ -2576,14 +3477,43 @@ async function startServer() {
         }
       }
 
+      // 13. CLEANING LOGS
       if (Array.isArray(db.cleaningLogs)) {
+        const clIds = db.cleaningLogs.map((cl: any) => String(cl.id)).filter(Boolean);
+        if (clIds.length > 0) {
+          await pgQuery(`DELETE FROM cleaning_logs WHERE id NOT IN (${clIds.map((_, i) => `$${i + 1}`).join(', ')})`, clIds).catch(() => {});
+        }
         for (const cl of db.cleaningLogs) {
           const id = cl.id;
           if (id) {
             await pgQuery(`
-              INSERT INTO cleaning_logs (id, room_number, data) VALUES ($1, $2, $3)
-              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, data = EXCLUDED.data;
-            `, [String(id), cl.roomNumber || '', JSON.stringify(cl)]);
+              INSERT INTO cleaning_logs (
+                id, room_number, building, petugas_id, petugas_name, timestamp, status, notes, photo_url, updated_at, data
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+              ON CONFLICT (id) DO UPDATE SET 
+                room_number = EXCLUDED.room_number,
+                building = EXCLUDED.building,
+                petugas_id = EXCLUDED.petugas_id,
+                petugas_name = EXCLUDED.petugas_name,
+                timestamp = EXCLUDED.timestamp,
+                status = EXCLUDED.status,
+                notes = EXCLUDED.notes,
+                photo_url = EXCLUDED.photo_url,
+                updated_at = EXCLUDED.updated_at,
+                data = EXCLUDED.data;
+            `, [
+              String(id),
+              cl.roomNumber || cl.room_number || '',
+              cl.building || '',
+              cl.petugasId || cl.petugas_id || '',
+              cl.petugasName || cl.petugas_name || '',
+              safeDateOrNull(cl.timestamp) || new Date().toISOString(),
+              cl.status || 'MENUNGGU_QC',
+              cl.notes || '',
+              cl.photoUrl || cl.photo_url || '',
+              safeDateOrNull(cl.updatedAt || cl.updated_at) || new Date().toISOString(),
+              JSON.stringify(cl)
+            ]);
           }
         }
       }
@@ -2605,6 +3535,9 @@ async function startServer() {
     }
     try {
       updatePoolConfig(databaseUrl.trim());
+      try {
+        fs.writeFileSync(aivenConfigFilePath, JSON.stringify({ databaseUrl: databaseUrl.trim(), updatedAt: new Date().toISOString() }, null, 2), "utf-8");
+      } catch (_) {}
       await ensureAppKvTable();
       const { rows } = await pgQuery("SELECT NOW() as now");
       res.json({ success: true, message: "Koneksi Aiven PostgreSQL berhasil dikonfigurasi!", time: rows[0]?.now });
@@ -2638,7 +3571,39 @@ async function startServer() {
       if (rows.length > 0 && rows[0].value) {
         res.json({ success: true, data: JSON.parse(rows[0].value) });
       } else {
-        res.json({ success: true, data: null });
+        const bRes = await pgQuery("SELECT data FROM buildings").catch(() => ({ rows: [] }));
+        const rRes = await pgQuery("SELECT data FROM rooms").catch(() => ({ rows: [] }));
+        const tRes = await pgQuery("SELECT data FROM transactions").catch(() => ({ rows: [] }));
+        const uRes = await pgQuery("SELECT data FROM users").catch(() => ({ rows: [] }));
+        const mRes = await pgQuery("SELECT data FROM maintenances").catch(() => ({ rows: [] }));
+        const qRes = await pgQuery("SELECT data FROM qc_inspections").catch(() => ({ rows: [] }));
+        const wRes = await pgQuery("SELECT data FROM work_sessions").catch(() => ({ rows: [] }));
+        const mrRes = await pgQuery("SELECT data FROM meeting_rooms").catch(() => ({ rows: [] }));
+        const boRes = await pgQuery("SELECT data FROM breakfast_orders").catch(() => ({ rows: [] }));
+        const bmiRes = await pgQuery("SELECT data FROM breakfast_menu_items").catch(() => ({ rows: [] }));
+        const alRes = await pgQuery("SELECT data FROM audit_logs").catch(() => ({ rows: [] }));
+        const clRes = await pgQuery("SELECT data FROM cleaning_logs").catch(() => ({ rows: [] }));
+
+        const reconstructed = {
+          buildings: bRes.rows.map(r => r.data).filter(Boolean),
+          rooms: rRes.rows.map(r => r.data).filter(Boolean),
+          transactions: tRes.rows.map(r => r.data).filter(Boolean),
+          users: uRes.rows.map(r => r.data).filter(Boolean),
+          maintenances: mRes.rows.map(r => r.data).filter(Boolean),
+          qcInspections: qRes.rows.map(r => r.data).filter(Boolean),
+          workSessions: wRes.rows.map(r => r.data).filter(Boolean),
+          meetingRooms: mrRes.rows.map(r => r.data).filter(Boolean),
+          breakfastOrders: boRes.rows.map(r => r.data).filter(Boolean),
+          breakfastMenuItems: bmiRes.rows.map(r => r.data).filter(Boolean),
+          auditLogs: alRes.rows.map(r => r.data).filter(Boolean),
+          cleaningLogs: clRes.rows.map(r => r.data).filter(Boolean),
+        };
+
+        if (reconstructed.buildings.length > 0 || reconstructed.rooms.length > 0 || reconstructed.transactions.length > 0) {
+          res.json({ success: true, data: reconstructed });
+        } else {
+          res.json({ success: true, data: null });
+        }
       }
     } catch (err: any) {
       console.warn("Get database from Aiven warning:", err?.message);
@@ -2662,12 +3627,12 @@ async function startServer() {
 
   app.delete("/api/pg/:table/:id", async (req, res) => {
     const { table, id } = req.params;
-    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "");
+    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
     if (!sanitizedTable) {
       return res.status(400).json({ success: false, error: "Invalid table name" });
     }
     try {
-      await pgQuery(`DELETE FROM ${sanitizedTable} WHERE id = $1 OR nomor_porsi = $1 OR nomor_kamar = $1`, [id]);
+      await pgQuery(`DELETE FROM ${sanitizedTable} WHERE id = $1 OR code = $1`, [id]);
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err?.message });
@@ -2676,7 +3641,7 @@ async function startServer() {
 
   app.get("/api/pg/:table", async (req, res) => {
     const { table } = req.params;
-    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "");
+    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
     if (!sanitizedTable) {
       return res.status(400).json({ success: false, error: "Invalid table name" });
     }
@@ -2691,21 +3656,78 @@ async function startServer() {
 
   app.post("/api/pg/:table", async (req, res) => {
     const { table } = req.params;
-    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "");
+    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
     if (!sanitizedTable) {
       return res.status(400).json({ success: false, error: "Invalid table name" });
     }
     const body = req.body || {};
-    const keys = Object.keys(body).filter(k => /^[a-zA-Z0-9_]+$/.test(k));
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      return res.status(400).json({ success: false, error: "Body must be an object" });
+    }
+
+    // Normalisasi properti camelCase ke snake_case
+    const rowData: Record<string, any> = {};
+    for (const [k, v] of Object.entries(body)) {
+      if (k === 'data') continue;
+      const snakeKey = k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`).toLowerCase();
+      if (/^[a-z0-9_]+$/.test(snakeKey)) {
+        if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+          rowData[snakeKey] = JSON.stringify(v);
+        } else if (Array.isArray(v)) {
+          rowData[snakeKey] = v.length > 0 && typeof v[0] === 'object' ? JSON.stringify(v) : v.join(', ');
+        } else {
+          rowData[snakeKey] = v;
+        }
+      }
+    }
+
+    // Selalu pastikan kolom 'data' terisi dengan representasi JSON lengkap
+    rowData['data'] = JSON.stringify(body);
+
+    const keys = Object.keys(rowData);
     if (keys.length === 0) {
       return res.status(400).json({ success: false, error: "No valid columns provided" });
     }
-    const values = keys.map(k => body[k]);
-    const placeholders = keys.map((_, idx) => `$${idx + 1}`).join(", ");
-    const columns = keys.join(", ");
 
     try {
-      const sql = `INSERT INTO ${sanitizedTable} (${columns}) VALUES (${placeholders}) RETURNING *;`;
+      // Ambil daftar kolom dan tipe datanya yang benar-benar ada di tabel database saat ini
+      const colQuery = await pgQuery(
+        `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1`,
+        [sanitizedTable]
+      );
+      const colTypeMap = new Map<string, string>(colQuery.rows.map((r: any) => [r.column_name.toLowerCase(), String(r.data_type || '').toLowerCase()]));
+      const validDbCols = new Set(colTypeMap.keys());
+
+      // Saring hanya kolom yang ada di skema tabel database
+      let filteredKeys = keys.filter(k => validDbCols.has(k.toLowerCase()));
+      if (filteredKeys.length === 0 || !validDbCols.has('id')) {
+        filteredKeys = keys.filter(k => k === 'id' || k === 'data');
+      }
+
+      const uniqueCols = Array.from(new Set(filteredKeys));
+      const values = uniqueCols.map(k => {
+        const val = rowData[k];
+        const dt = colTypeMap.get(k.toLowerCase()) || '';
+        // Jika kolom bertipe waktu/tanggal/angka dan nilai berupa string kosong atau undefined, kirimkan null
+        if (val === '' || val === undefined) {
+          if (dt.includes('timestamp') || dt.includes('date') || dt.includes('int') || dt.includes('numeric') || dt.includes('float') || dt.includes('double')) {
+            return null;
+          }
+        }
+        return val;
+      });
+      const placeholders = uniqueCols.map((_, idx) => `$${idx + 1}`).join(", ");
+      const columns = uniqueCols.join(", ");
+
+      const updateAssignments = uniqueCols
+        .filter(k => k !== 'id')
+        .map(k => `${k} = EXCLUDED.${k}`)
+        .join(", ");
+
+      const sql = uniqueCols.includes('id') && updateAssignments
+        ? `INSERT INTO ${sanitizedTable} (${columns}) VALUES (${placeholders}) ON CONFLICT (id) DO UPDATE SET ${updateAssignments} RETURNING *;`
+        : `INSERT INTO ${sanitizedTable} (${columns}) VALUES (${placeholders}) RETURNING *;`;
+
       const { rows } = await pgQuery(sql, values);
       res.json({ success: true, data: rows[0] });
     } catch (error: any) {

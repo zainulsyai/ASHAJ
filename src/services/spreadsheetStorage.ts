@@ -1423,13 +1423,22 @@ export async function pushWorkSessionToSpreadsheet(
 }
 
 /**
- * UPSERT SATU REKAMAN (INSERT JIKA BARU, UPDATE JIKA SUDAH ADA) KE SPREADSHEET
+ * UPSERT SATU REKAMAN (INSERT JIKA BARU, UPDATE JIKA SUDAH ADA) KE SPREADSHEET & AIVEN POSTGRESQL
  * Tidak pernah menghapus data lain di lembar kerja yang sama
  */
 export async function upsertRecordToSpreadsheet(
   sheetName: string,
   record: any
 ): Promise<{ success: boolean; error?: string }> {
+  // 1. Langsung sinkronkan upsert ke Aiven PostgreSQL backend secara instan!
+  try {
+    fetch(`/api/pg/${sheetName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record)
+    }).catch(() => {});
+  } catch (_) {}
+
   const cfg = getSpreadsheetConfig();
   const webAppUrl = cfg.webAppUrl;
   if (!webAppUrl) return { success: true };
@@ -1473,12 +1482,19 @@ export async function upsertRecordToSpreadsheet(
 }
 
 /**
- * HAPUS SATU REKAMAN BERDASARKAN ID DARI LEMBAR KERJA TERTENTU DI SPREADSHEET
+ * HAPUS SATU REKAMAN BERDASARKAN ID DARI LEMBAR KERJA TERTENTU DI SPREADSHEET & AIVEN POSTGRESQL
  */
 export async function deleteRecordFromSpreadsheet(
   sheetName: string,
   recordId: string
 ): Promise<{ success: boolean; error?: string }> {
+  // 1. Langsung sinkronkan delete ke Aiven PostgreSQL backend secara instan!
+  try {
+    fetch(`/api/pg/${sheetName}/${encodeURIComponent(recordId)}`, {
+      method: 'DELETE'
+    }).catch(() => {});
+  } catch (_) {}
+
   const cfg = getSpreadsheetConfig();
   const webAppUrl = cfg.webAppUrl;
   if (!webAppUrl) return { success: true };

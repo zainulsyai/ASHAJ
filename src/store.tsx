@@ -505,6 +505,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateCurrentAccount = (updatedData: { fullName?: string; username?: string; phone?: string; password?: string; signatureUrl?: string; qrCodeUrl?: string; signatureHistory?: any[] }) => {
     if (!currentUser) return;
+    const nowIso = new Date().toISOString();
     const updatedUser: User = {
       ...currentUser,
       fullName: updatedData.fullName !== undefined ? updatedData.fullName : currentUser.fullName,
@@ -514,6 +515,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       signatureUrl: updatedData.signatureUrl !== undefined ? updatedData.signatureUrl : currentUser.signatureUrl,
       qrCodeUrl: updatedData.qrCodeUrl !== undefined ? updatedData.qrCodeUrl : currentUser.qrCodeUrl,
       signatureHistory: updatedData.signatureHistory !== undefined ? updatedData.signatureHistory : currentUser.signatureHistory,
+      updatedAt: nowIso
     };
     setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
     setCurrentUser(updatedUser);
@@ -522,8 +524,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('sim_haji_current_user', JSON.stringify(updatedUser));
       sessionStorage.setItem('sim_haji_current_user', JSON.stringify(updatedUser));
     } catch (_) {}
+
+    // Segera dorong pembaruan ke Aiven PostgreSQL & Google Spreadsheet
+    dataStorage.pushAllToSpreadsheet().catch(err => console.warn('Gagal push update profil ke cloud:', err));
+    fetch('/api/pg/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        role: updatedUser.role,
+        full_name: updatedUser.fullName,
+        department: updatedUser.department || 'Operasional',
+        assigned_building: updatedUser.assignedBuilding || 'Semua Gedung',
+        phone: updatedUser.phone || '-',
+        password: updatedUser.password || '12345',
+        signature_url: updatedUser.signatureUrl || '',
+        qr_code_url: updatedUser.qrCodeUrl || '',
+        nip: updatedUser.nip || '',
+        email: updatedUser.email || '',
+        status: updatedUser.status || 'Aktif',
+        updated_at: nowIso,
+        data: updatedUser
+      })
+    }).catch(err => console.warn('Gagal direct update user ke Aiven PostgreSQL:', err));
+
     logAudit('Edit Akun Mandiri', `Pengguna ${updatedUser.fullName} memperbarui informasi profil akun & tanda tangan digital.`);
-    showToast('Profil akun & tanda tangan berhasil diperbarui dan disimpan ke database!', 'success');
+    showToast('Profil akun & tanda tangan berhasil diperbarui dan disinkronkan ke database!', 'success');
   };
 
   const [appSettings, setAppSettings] = useState<AppSettings>(() => dataStorage.getAppSettings());
@@ -986,6 +1013,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadCloudDatabase() {
       try {
+        // Otomatis verifikasi dan sinkronkan koneksi Aiven jika ada di localStorage
+        try {
+          const storedAivenUrl = localStorage.getItem('AIVEN_DATABASE_URL');
+          if (storedAivenUrl && (storedAivenUrl.startsWith('postgres://') || storedAivenUrl.startsWith('postgresql://'))) {
+            fetch('/api/pg/configure', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ databaseUrl: storedAivenUrl })
+            }).catch(() => {});
+          }
+        } catch (_) {}
+
         const cloudDb = await dataStorage.hydrateFromSupabase(true);
         if (cloudDb) {
           setUsers(cloudDb.users);
@@ -2634,14 +2673,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     const existingTarget = users.find(u => u.id === updatedUser.id);
+    const nowIso = new Date().toISOString();
     // Cegah akun selain Admin / Super Admin mengubah role atau permissions dirinya sendiri
     const safeUpdatedUser: User = !isSuperAdmin(currentUser?.role) && existingTarget
       ? {
           ...updatedUser,
           role: existingTarget.role,
-          permissions: existingTarget.permissions
+          permissions: existingTarget.permissions,
+          updatedAt: nowIso
         }
-      : updatedUser;
+      : { ...updatedUser, updatedAt: nowIso };
 
     setUsers(prev => prev.map(u => u.id === safeUpdatedUser.id ? safeUpdatedUser : u));
     dataStorage.saveUser(safeUpdatedUser);
@@ -2652,8 +2693,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
         sessionStorage.setItem('sim_haji_current_user', JSON.stringify(safeUpdatedUser));
       } catch (_) {}
     }
+
+    // Segera simpan dan sinkronkan pembaruan akun ke database PostgreSQL & Spreadsheet
+    dataStorage.pushAllToSpreadsheet().catch(err => console.warn('Gagal push update user ke cloud:', err));
+    fetch('/api/pg/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: safeUpdatedUser.id,
+        username: safeUpdatedUser.username,
+        role: safeUpdatedUser.role,
+        full_name: safeUpdatedUser.fullName,
+        department: safeUpdatedUser.department || 'Operasional',
+        assigned_building: safeUpdatedUser.assignedBuilding || 'Semua Gedung',
+        phone: safeUpdatedUser.phone || '-',
+        password: safeUpdatedUser.password || '12345',
+        signature_url: safeUpdatedUser.signatureUrl || '',
+        qr_code_url: safeUpdatedUser.qrCodeUrl || '',
+        nip: safeUpdatedUser.nip || '',
+        email: safeUpdatedUser.email || '',
+        status: safeUpdatedUser.status || 'Aktif',
+        updated_at: nowIso,
+        data: safeUpdatedUser
+      })
+    }).catch(err => console.warn('Gagal direct update user ke Aiven PostgreSQL:', err));
+
     logAudit("Ubah Akun", `Memperbarui akun: ${safeUpdatedUser.username} (${safeUpdatedUser.fullName}) - ${safeUpdatedUser.role}`);
-    showToast(`Data petugas ${safeUpdatedUser.fullName} berhasil diperbarui di sistem!`, "success");
+    showToast(`Data petugas ${safeUpdatedUser.fullName} berhasil diperbarui di sistem & database!`, "success");
   };
 
   const toggleUserStatus = (userId: string) => {

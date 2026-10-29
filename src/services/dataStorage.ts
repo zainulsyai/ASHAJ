@@ -1695,7 +1695,7 @@ export class DataStorageService {
       updatedTxs = [txWithTime, ...db.transactions];
     }
 
-    this.saveDatabase({ ...db, transactions: updatedTxs }, { skipCloudSync: true });
+    this.saveDatabase({ ...db, transactions: updatedTxs });
     upsertRecordToSpreadsheet('transactions', txWithTime).catch(() => {});
     return txWithTime;
   }
@@ -1703,7 +1703,7 @@ export class DataStorageService {
   public saveTransactions(txs: Transaction[]): void {
     const db = this.getDatabase();
     const withTime = txs.map(t => ({ ...t, updatedAt: t.updatedAt || new Date().toISOString() }));
-    this.saveDatabase({ ...db, transactions: withTime }, { skipCloudSync: true });
+    this.saveDatabase({ ...db, transactions: withTime });
     for (const t of withTime) {
       upsertRecordToSpreadsheet('transactions', t).catch(() => {});
     }
@@ -1738,7 +1738,7 @@ export class DataStorageService {
     // Hapus juga pesanan sarapan terkait jika ada
     const updatedOrders = (db.breakfastOrders || []).filter(o => o.transactionId !== txId && o.id !== `BO-TX-${txId}`);
 
-    this.saveDatabase({ ...db, transactions: updatedTxs, rooms: updatedRooms, breakfastOrders: updatedOrders }, { skipCloudSync: true });
+    this.saveDatabase({ ...db, transactions: updatedTxs, rooms: updatedRooms, breakfastOrders: updatedOrders });
     deleteRecordFromSpreadsheet('transactions', txId).catch(() => {});
     return { success: true, message: `Transaksi '${targetTx.guestName}' (${txId}) berhasil dihapus secara permanen.` };
   }

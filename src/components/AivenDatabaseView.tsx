@@ -17,6 +17,9 @@ export function AivenDatabaseView() {
     qcInspections = [],
     workSessions = [],
     auditLogs = [],
+    cleaningLogs = [],
+    chatChannels = [],
+    chatMessages = [],
     manualSyncSupabase,
     pushAllToSupabase,
     supabaseSyncState
@@ -35,7 +38,7 @@ export function AivenDatabaseView() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; time?: string } | null>(null);
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
-  const [selectedTable, setSelectedTable] = useState<string>('kamar');
+  const [selectedTable, setSelectedTable] = useState<string>('rooms');
 
   const handleSaveAndTestUrl = async () => {
     if (!databaseUrlInput.trim()) {
@@ -133,9 +136,9 @@ export function AivenDatabaseView() {
   };
 
   const TABLE_MODULES = [
-    { id: 'kamar', name: 'kamar', label: 'Kamar & Penginapan', count: rooms.length, icon: 'fa-bed' },
-    { id: 'gedung', name: 'gedung', label: 'Master Gedung', count: buildings.length, icon: 'fa-building' },
-    { id: 'transaksi', name: 'transaksi', label: 'Transaksi & Reservasi', count: transactions.length, icon: 'fa-receipt' },
+    { id: 'rooms', name: 'rooms', label: 'Kamar & Penginapan', count: rooms.length, icon: 'fa-bed' },
+    { id: 'buildings', name: 'buildings', label: 'Master Gedung', count: buildings.length, icon: 'fa-building' },
+    { id: 'transactions', name: 'transactions', label: 'Transaksi & Reservasi', count: transactions.length, icon: 'fa-receipt' },
     { id: 'users', name: 'users', label: 'Petugas & Anggota', count: users.length, icon: 'fa-users' },
     { id: 'maintenances', name: 'maintenances', label: 'Laporan Perbaikan & Fasilitas', count: maintenances.length, icon: 'fa-wrench' },
     { id: 'qc_inspections', name: 'qc_inspections', label: 'Inspeksi Quality Control', count: qcInspections.length, icon: 'fa-clipboard-check' },
@@ -144,7 +147,13 @@ export function AivenDatabaseView() {
     { id: 'breakfast_orders', name: 'breakfast_orders', label: 'Pesanan Makan & Konsumsi', count: breakfastOrders.length, icon: 'fa-utensils' },
     { id: 'room_capacity_rates', name: 'room_capacity_rates', label: 'Tarif & Kapasitas Kamar', count: roomCapacityRates.length, icon: 'fa-tags' },
     { id: 'breakfast_menu_items', name: 'breakfast_menu_items', label: 'Katalog Menu Katering', count: breakfastMenuItems.length, icon: 'fa-bowl-food' },
-    { id: 'audit_logs', name: 'audit_logs', label: 'Log Audit & Aktivitas Sistem', count: auditLogs.length, icon: 'fa-shield-halved' }
+    { id: 'audit_logs', name: 'audit_logs', label: 'Log Audit & Aktivitas Sistem', count: auditLogs.length, icon: 'fa-shield-halved' },
+    { id: 'cleaning_logs', name: 'cleaning_logs', label: 'Laporan Pembersihan (Housekeeping)', count: cleaningLogs.length, icon: 'fa-broom' },
+    { id: 'chat_channels', name: 'chat_channels', label: 'Saluran & Grup Chat', count: chatChannels.length, icon: 'fa-comments' },
+    { id: 'chat_messages', name: 'chat_messages', label: 'Riwayat Pesan Chat', count: chatMessages.length, icon: 'fa-message' },
+    { id: 'app_settings', name: 'app_settings', label: 'Pengaturan Profil Instansi', count: 1, icon: 'fa-gear' },
+    { id: 'system_logs', name: 'system_logs', label: 'Log Sistem & Aktivitas', count: auditLogs.length, icon: 'fa-file-lines' },
+    { id: 'app_kv', name: 'app_kv', label: 'Store Key-Value Global (app_kv)', count: 1, icon: 'fa-database' }
   ];
 
   return (
