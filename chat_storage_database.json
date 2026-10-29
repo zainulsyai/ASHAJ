@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-19T08:45:13.150Z",
+  "channels": [
+    {
+      "id": "dm___u-admin___u-superadmin",
+      "type": "DIRECT",
+      "name": "Administrator Operasional",
+      "participantIds": [
+        "u-superadmin",
+        "u-admin"
+      ],
+      "lastMessage": "Halo admin dari superadmin",
+      "lastMessageTime": "08.45 WIB",
+      "lastSenderName": "Administrator Management",
+      "updatedAt": "2026-10-19T08:45:13.126Z"
+    },
+    {
+      "id": "channel-all-managers",
+      "name": "Forum Koordinasi Terpadu UPT",
+      "scope": "ALL_MANAGERS_GROUP",
+      "type": "GROUP",
+      "participantIds": [],
+      "description": "Ruang koordinasi strategis pimpinan dan seluruh divisi operasional Asrama Haji.",
+      "icon": "fa-users-gear",
+      "lastMessage": "Sistem komunikasi operasional aktif. Gunakan saluran ini untuk koordinasi lintas unit.",
+      "lastMessageTime": "08:00",
+      "lastSenderName": "Sistem UPT"
+    },
+    {
+      "id": "channel-operasional",
+      "name": "Operasional Reservasi & Front Office",
+      "scope": "DIVISION_GROUP",
+      "type": "GROUP",
+      "department": "Divisi Resepsionis",
+      "participantIds": [],
+      "description": "Koordinasi penempatan jemaah, check-in, check-out, dan status kamar.",
+      "icon": "fa-bell-concierge",
+      "lastMessage": "Saluran koordinasi reservasi dan registrasi jemaah siap digunakan.",
+      "lastMessageTime": "08:00",
+      "lastSenderName": "Sistem UPT"
+    },
+    {
+      "id": "channel-fasilitas-teknisi",
+      "name": "Sarana Prasarana, Teknisi & QC",
+      "scope": "DIVISION_GROUP",
+      "type": "GROUP",
+      "department": "Divisi Teknisi & QC",
+      "participantIds": [],
+      "description": "Saluran penugasan perbaikan fasilitas, genset, AC, plumbing, dan verifikasi kelayakan kamar.",
+      "icon": "fa-screwdriver-wrench",
+      "lastMessage": "Saluran pemeliharaan sarana prasarana dan inspeksi QC aktif.",
+      "lastMessageTime": "08:00",
+      "lastSenderName": "Sistem UPT"
+    },
+    {
+      "id": "channel-koperasi-konsumsi",
+      "name": "Layanan Koperasi & Sarapan Tamu",
+      "scope": "DIVISION_GROUP",
+      "type": "GROUP",
+      "department": "Divisi Koperasi",
+      "participantIds": [],
+      "description": "Koordinasi pemesanan konsumsi, menu sarapan, dan pengantaran ke kamar tamu.",
+      "icon": "fa-utensils",
+      "lastMessage": "Saluran katering dan koperasi siap memproses pesanan sarapan.",
+      "lastMessageTime": "08:00",
+      "lastSenderName": "Sistem UPT"
+    },
+    {
+      "id": "channel-keuangan-bendahara",
+      "name": "Koordinasi Keuangan & Verifikasi PNBP",
+      "scope": "DIVISION_GROUP",
+      "type": "GROUP",
+      "department": "Divisi Keuangan",
+      "participantIds": [],
+      "description": "Koordinasi tagihan sewa, pelunasan DP, kwitansi resmi, dan rekonsiliasi keuangan asrama.",
+      "icon": "fa-file-invoice-dollar",
+      "lastMessage": "Saluran koordinasi keuangan dan verifikasi pembayaran siap digunakan.",
+      "lastMessageTime": "08:00",
+      "lastSenderName": "Sistem UPT"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg-1792394805908-d4jz",
+      "channelId": "channel-all-managers",
+      "channelType": "GROUP",
+      "senderId": "u-superadmin",
+      "senderName": "Administrator Management",
+      "senderRole": "Super Admin",
+      "senderDepartment": "Operasional",
+      "message": "Tes koordinasi 3 laptop terhubung lancar!",
+      "timestamp": "2026-10-19T07:26:45.908Z",
+      "timeFormatted": "07.26 WIB",
+      "priority": "NORMAL",
+      "isInstruction": false,
+      "readBy": [
+        "u-superadmin"
+      ],
+      "createdAt": "2026-10-19T07:26:45.908Z"
+    },
+    {
+      "id": "msg-1792399513127-krw5",
+      "channelId": "dm___u-admin___u-superadmin",
+      "channelType": "DIRECT",
+      "senderId": "u-superadmin",
+      "senderName": "Administrator Management",
+      "senderRole": "Super Admin",
+      "senderDepartment": "Operasional",
+      "message": "Halo admin dari superadmin",
+      "timestamp": "2026-10-19T08:45:13.126Z",
+      "timeFormatted": "08.45 WIB",
+      "priority": "NORMAL",
+      "isInstruction": false,
+      "readBy": [
+        "u-superadmin"
+      ],
+      "createdAt": "2026-10-19T08:45:13.126Z"
+    }
+  ]
+}
