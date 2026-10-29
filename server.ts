@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createHttpServer } from "http";
+import { query as pgQuery } from "./src/db/db.ts";
 
 async function startServer() {
   const app = express();
@@ -2347,6 +2348,50 @@ async function startServer() {
       }
     }
     res.json({ ok: true });
+  });
+
+  // =========================================================================
+  // AIVEN POSTGRESQL API ENDPOINTS (MIGRATION FROM GOOGLE SHEETS)
+  // =========================================================================
+
+  app.get("/api/pg/:table", async (req, res) => {
+    const { table } = req.params;
+    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "");
+    if (!sanitizedTable) {
+      return res.status(400).json({ success: false, error: "Invalid table name" });
+    }
+    try {
+      const { rows } = await pgQuery(`SELECT * FROM ${sanitizedTable} LIMIT 200`);
+      res.json({ success: true, data: rows });
+    } catch (error: any) {
+      console.warn(`[PostgreSQL] Query failed for table ${sanitizedTable}:`, error?.message);
+      res.status(500).json({ success: false, error: error?.message || "Database error", data: [] });
+    }
+  });
+
+  app.post("/api/pg/:table", async (req, res) => {
+    const { table } = req.params;
+    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "");
+    if (!sanitizedTable) {
+      return res.status(400).json({ success: false, error: "Invalid table name" });
+    }
+    const body = req.body || {};
+    const keys = Object.keys(body).filter(k => /^[a-zA-Z0-9_]+$/.test(k));
+    if (keys.length === 0) {
+      return res.status(400).json({ success: false, error: "No valid columns provided" });
+    }
+    const values = keys.map(k => body[k]);
+    const placeholders = keys.map((_, idx) => `$${idx + 1}`).join(", ");
+    const columns = keys.join(", ");
+
+    try {
+      const sql = `INSERT INTO ${sanitizedTable} (${columns}) VALUES (${placeholders}) RETURNING *;`;
+      const { rows } = await pgQuery(sql, values);
+      res.json({ success: true, data: rows[0] });
+    } catch (error: any) {
+      console.error(`[PostgreSQL] Insert failed for table ${sanitizedTable}:`, error?.message);
+      res.status(500).json({ success: false, error: error?.message || "Database insert error" });
+    }
   });
 
   const distPath = path.join(process.cwd(), "dist");
