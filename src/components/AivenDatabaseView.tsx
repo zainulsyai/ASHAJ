@@ -22,11 +22,60 @@ export function AivenDatabaseView() {
     supabaseSyncState
   } = useAppContext();
 
+  const [databaseUrlInput, setDatabaseUrlInput] = useState(() => {
+    try {
+      return localStorage.getItem('AIVEN_DATABASE_URL') || 'postgres://avnadmin:YOUR_PASSWORD@management-ashaj-managementasrama-5b56.g.aivencloud.com:22170/defaultdb?sslmode=require';
+    } catch {
+      return 'postgres://avnadmin:YOUR_PASSWORD@management-ashaj-managementasrama-5b56.g.aivencloud.com:22170/defaultdb?sslmode=require';
+    }
+  });
+
   const [isTesting, setIsTesting] = useState(false);
+  const [isSavingUrl, setIsSavingUrl] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; time?: string } | null>(null);
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [selectedTable, setSelectedTable] = useState<string>('kamar');
+
+  const handleSaveAndTestUrl = async () => {
+    if (!databaseUrlInput.trim()) {
+      showToast('Masukkan Service URI / Connection String Aiven PostgreSQL!', 'warning');
+      return;
+    }
+    setIsSavingUrl(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/pg/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ databaseUrl: databaseUrlInput.trim() })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        localStorage.setItem('AIVEN_DATABASE_URL', databaseUrlInput.trim());
+        setTestResult({
+          success: true,
+          message: 'Koneksi ke Aiven PostgreSQL berhasil dikonfigurasi & terhubung!',
+          time: data.time || new Date().toISOString()
+        });
+        showToast('Koneksi Aiven PostgreSQL berhasil dikonfigurasi!', 'success');
+      } else {
+        setTestResult({
+          success: false,
+          message: data.error || 'Gagal terhubung dengan Connection String tersebut.'
+        });
+        showToast(data.error || 'Konfigurasi gagal.', 'error');
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err?.message || 'Gagal mengirim konfigurasi.'
+      });
+      showToast('Gagal mengirim konfigurasi.', 'error');
+    } finally {
+      setIsSavingUrl(false);
+    }
+  };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -118,18 +167,14 @@ export function AivenDatabaseView() {
                   <i className="fa-solid fa-lock"></i>
                   <span>SSL/TLS Enkripsi Aktif</span>
                 </span>
-                <span className="inline-flex items-center space-x-1.5 bg-purple-500/20 text-purple-300 border border-purple-400/30 px-3 py-1 rounded-full text-xs font-bold">
-                  <i className="fa-solid fa-bolt"></i>
-                  <span>Driver node-postgres (pg Pool)</span>
-                </span>
               </div>
 
               <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
                 <i className="fa-solid fa-database text-emerald-400"></i>
-                Basis Data Utama Aiven PostgreSQL
+                Konfigurasi Basis Data Aiven PostgreSQL
               </h2>
               <p className="text-xs text-slate-300 leading-relaxed">
-                SIM Asrama Haji terhubung langsung dengan basis data <strong>Aiven PostgreSQL</strong>. Seluruh modul reservasi jemaah, ketersediaan kamar, transaksi, akun, dan rekap operasional tersimpan secara transaksional dengan perlindungan data cloud tingkat enterprise.
+                Masukkan <strong>Service URI</strong> atau <strong>Connection String</strong> Aiven PostgreSQL Anda (dari panel Aiven seperti pada screenshot) di bawah ini untuk menghubungkan SIM Asrama Haji secara instan.
               </p>
             </div>
 
@@ -142,7 +187,7 @@ export function AivenDatabaseView() {
                 className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs rounded-xl transition flex items-center space-x-2 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <i className={`fa-solid ${isTesting ? 'fa-spinner fa-spin' : 'fa-network-wired text-sky-400'}`}></i>
-                <span>{isTesting ? 'Menguji...' : 'Uji Koneksi Aiven'}</span>
+                <span>{isTesting ? 'Menguji...' : 'Uji Koneksi'}</span>
               </button>
 
               <button
@@ -152,7 +197,7 @@ export function AivenDatabaseView() {
                 className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition flex items-center space-x-2 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <i className={`fa-solid ${isPulling ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-down'}`}></i>
-                <span>{isPulling ? 'Menarik...' : 'Tarik Data Aiven'}</span>
+                <span>{isPulling ? 'Menarik...' : 'Tarik Data'}</span>
               </button>
 
               <button
@@ -165,6 +210,33 @@ export function AivenDatabaseView() {
                 <span>{isPushing ? 'Menyimpan...' : 'Kirim Pembaruan'}</span>
               </button>
             </div>
+          </div>
+
+          {/* Form Input Connection String Aiven */}
+          <div className="bg-black/40 p-4 rounded-xl border border-white/15 space-y-2.5">
+            <label className="block text-xs font-bold text-emerald-300">
+              Aiven Service URI / DATABASE_URL:
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={databaseUrlInput}
+                onChange={(e) => setDatabaseUrlInput(e.target.value)}
+                placeholder="postgres://avnadmin:PASSWORD@management-ashaj-managementasrama-5b56.g.aivencloud.com:22170/defaultdb?sslmode=require"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-emerald-200 focus:outline-none focus:border-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={handleSaveAndTestUrl}
+                disabled={isSavingUrl}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition shadow-sm cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                {isSavingUrl ? 'Menghubungkan...' : 'Simpan & Hubungkan'}
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              * Ganti <code className="text-amber-300 font-mono">YOUR_PASSWORD</code> dengan password asli Aiven Anda yang terdapat di panel Aiven (lihat tangkapan layar).
+            </p>
           </div>
 
           {/* Test Result Alert */}
@@ -254,20 +326,6 @@ export function AivenDatabaseView() {
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* Panduan Konfigurasi Connection String Aiven */}
-      <div className="bg-slate-900 text-slate-200 p-5 rounded-2xl shadow-sm border border-slate-800 space-y-3">
-        <div className="flex items-center space-x-2 text-gold-400">
-          <i className="fa-solid fa-key text-sm"></i>
-          <h4 className="font-bold text-xs uppercase tracking-wider">Konfigurasi Koneksi Aiven (Environment)</h4>
-        </div>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Koneksi Aiven PostgreSQL dikelola secara otomatis oleh server Express melalui environment variable <code className="text-emerald-400 font-mono">DATABASE_URL</code> dengan SSL mode <code className="text-emerald-400 font-mono">require</code>.
-        </p>
-        <div className="bg-black/50 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-x-auto">
-          DATABASE_URL=postgres://avnadmin:[PASSWORD]@[HOST].aivencloud.com:[PORT]/defaultdb?sslmode=require
         </div>
       </div>
     </div>

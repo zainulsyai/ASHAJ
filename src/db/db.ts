@@ -1,27 +1,40 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 
-// Mengambil DATABASE_URL dari environment variable (Aiven PostgreSQL)
-// Jika belum disiapkan, default ke string kosong atau lokal untuk mencegah crash saat start
-const connectionString = process.env.DATABASE_URL || '';
+let currentPool: any = null;
 
-export const pool = new Pool({
-  connectionString: connectionString || undefined,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-});
-
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle PostgreSQL client:', err);
-});
+export function getPool() {
+  const connectionString = process.env.DATABASE_URL || '';
+  if (!currentPool && connectionString) {
+    currentPool = new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+    currentPool.on('error', (err: any) => {
+      console.error('Unexpected error on idle PostgreSQL client:', err);
+    });
+  }
+  return currentPool;
+}
 
 export async function query(text: string, params?: any[]) {
+  const connectionString = process.env.DATABASE_URL || '';
   if (!connectionString) {
-    throw new Error('DATABASE_URL belum dikonfigurasi. Harap tentukan DATABASE_URL Aiven PostgreSQL di .env');
+    throw new Error('DATABASE_URL belum dikonfigurasi. Harap tentukan DATABASE_URL Aiven PostgreSQL di .env atau melalui panel Aiven.');
+  }
+  let pool = getPool();
+  if (!pool) {
+    currentPool = new Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+    pool = currentPool;
   }
   const client = await pool.connect();
   try {
@@ -32,5 +45,13 @@ export async function query(text: string, params?: any[]) {
     return res;
   } finally {
     client.release();
+  }
+}
+
+export function updatePoolConfig(newUrl: string) {
+  process.env.DATABASE_URL = newUrl;
+  if (currentPool) {
+    currentPool.end().catch(() => {});
+    currentPool = null;
   }
 }

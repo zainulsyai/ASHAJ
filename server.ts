@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createHttpServer } from "http";
-import { query as pgQuery } from "./src/db/db.ts";
+import { query as pgQuery, updatePoolConfig } from "./src/db/db.ts";
 
 async function startServer() {
   const app = express();
@@ -2354,25 +2354,286 @@ async function startServer() {
   // AIVEN POSTGRESQL API ENDPOINTS (MIGRATION FROM GOOGLE SHEETS)
   // =========================================================================
 
-  pgQuery(`
-    CREATE TABLE IF NOT EXISTS app_kv (
-      key VARCHAR(255) PRIMARY KEY,
-      value TEXT,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `).catch(() => {});
+  async function ensureAndPopulateRelationalTables(db: any) {
+    if (!process.env.DATABASE_URL || !db || typeof db !== 'object') return;
+    try {
+      await pgQuery(`
+        CREATE TABLE IF NOT EXISTS app_kv (
+          key VARCHAR(255) PRIMARY KEY,
+          value TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS buildings (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS rooms (
+          id VARCHAR(100) PRIMARY KEY,
+          room_number VARCHAR(100),
+          building VARCHAR(255),
+          capacity INTEGER,
+          status VARCHAR(50),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS transactions (
+          id VARCHAR(100) PRIMARY KEY,
+          nomor_porsi VARCHAR(100),
+          guest_name VARCHAR(255),
+          room_number VARCHAR(100),
+          status VARCHAR(50),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(100) PRIMARY KEY,
+          username VARCHAR(100),
+          role VARCHAR(100),
+          full_name VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS maintenances (
+          id VARCHAR(100) PRIMARY KEY,
+          room_number VARCHAR(100),
+          status VARCHAR(50),
+          urgency VARCHAR(50),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS qc_inspections (
+          id VARCHAR(100) PRIMARY KEY,
+          room_number VARCHAR(100),
+          inspector VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS work_sessions (
+          id VARCHAR(100) PRIMARY KEY,
+          user_id VARCHAR(100),
+          user_name VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS meeting_rooms (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS breakfast_orders (
+          id VARCHAR(100) PRIMARY KEY,
+          guest_name VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS breakfast_menu_items (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id VARCHAR(100) PRIMARY KEY,
+          action VARCHAR(255),
+          data JSONB
+        );
+        CREATE TABLE IF NOT EXISTS cleaning_logs (
+          id VARCHAR(100) PRIMARY KEY,
+          room_number VARCHAR(100),
+          data JSONB
+        );
+      `);
+
+      const jsonStr = JSON.stringify(db);
+      await pgQuery(`
+        INSERT INTO app_kv (key, value, updated_at)
+        VALUES ('full_database', $1, CURRENT_TIMESTAMP)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;
+      `, [jsonStr]);
+
+      if (Array.isArray(db.buildings)) {
+        for (const b of db.buildings) {
+          const id = b.id || b.name;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO buildings (id, name, data) VALUES ($1, $2, $3)
+              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data;
+            `, [String(id), b.name || String(id), JSON.stringify(b)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.rooms)) {
+        for (const r of db.rooms) {
+          const id = r.id || r.roomNumber || r.number;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO rooms (id, room_number, building, capacity, status, data) VALUES ($1, $2, $3, $4, $5, $6)
+              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, building = EXCLUDED.building, capacity = EXCLUDED.capacity, status = EXCLUDED.status, data = EXCLUDED.data;
+            `, [String(id), r.roomNumber || r.number || '', r.building || '', Number(r.capacity) || 0, r.status || 'Tersedia', JSON.stringify(r)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.transactions)) {
+        for (const t of db.transactions) {
+          const id = t.id || t.transactionId;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO transactions (id, nomor_porsi, guest_name, room_number, status, data) VALUES ($1, $2, $3, $4, $5, $6)
+              ON CONFLICT (id) DO UPDATE SET nomor_porsi = EXCLUDED.nomor_porsi, guest_name = EXCLUDED.guest_name, room_number = EXCLUDED.room_number, status = EXCLUDED.status, data = EXCLUDED.data;
+            `, [String(id), t.nomorPorsi || t.nomor_porsi || '', t.guestName || t.namaJemaah || '', t.roomNumber || '', t.status || '', JSON.stringify(t)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.users)) {
+        for (const u of db.users) {
+          const id = u.id || u.username;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO users (id, username, role, full_name, data) VALUES ($1, $2, $3, $4, $5)
+              ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, role = EXCLUDED.role, full_name = EXCLUDED.full_name, data = EXCLUDED.data;
+            `, [String(id), u.username || '', u.role || '', u.fullName || u.nama || '', JSON.stringify(u)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.maintenances)) {
+        for (const m of db.maintenances) {
+          const id = m.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO maintenances (id, room_number, status, urgency, data) VALUES ($1, $2, $3, $4, $5)
+              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, status = EXCLUDED.status, urgency = EXCLUDED.urgency, data = EXCLUDED.data;
+            `, [String(id), m.roomNumber || '', m.status || '', m.urgency || '', JSON.stringify(m)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.qcInspections)) {
+        for (const qc of db.qcInspections) {
+          const id = qc.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO qc_inspections (id, room_number, inspector, data) VALUES ($1, $2, $3, $4)
+              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, inspector = EXCLUDED.inspector, data = EXCLUDED.data;
+            `, [String(id), qc.roomNumber || '', qc.inspector || '', JSON.stringify(qc)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.workSessions)) {
+        for (const ws of db.workSessions) {
+          const id = ws.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO work_sessions (id, user_id, user_name, data) VALUES ($1, $2, $3, $4)
+              ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, user_name = EXCLUDED.user_name, data = EXCLUDED.data;
+            `, [String(id), ws.userId || '', ws.userName || '', JSON.stringify(ws)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.meetingRooms)) {
+        for (const mr of db.meetingRooms) {
+          const id = mr.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO meeting_rooms (id, name, data) VALUES ($1, $2, $3)
+              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data;
+            `, [String(id), mr.name || '', JSON.stringify(mr)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.breakfastOrders)) {
+        for (const bo of db.breakfastOrders) {
+          const id = bo.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO breakfast_orders (id, guest_name, data) VALUES ($1, $2, $3)
+              ON CONFLICT (id) DO UPDATE SET guest_name = EXCLUDED.guest_name, data = EXCLUDED.data;
+            `, [String(id), bo.guestName || bo.namaPemesan || '', JSON.stringify(bo)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.breakfastMenuItems)) {
+        for (const bmi of db.breakfastMenuItems) {
+          const id = bmi.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO breakfast_menu_items (id, name, data) VALUES ($1, $2, $3)
+              ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data;
+            `, [String(id), bmi.name || '', JSON.stringify(bmi)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.auditLogs)) {
+        for (const al of db.auditLogs) {
+          const id = al.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO audit_logs (id, action, data) VALUES ($1, $2, $3)
+              ON CONFLICT (id) DO UPDATE SET action = EXCLUDED.action, data = EXCLUDED.data;
+            `, [String(id), al.action || '', JSON.stringify(al)]);
+          }
+        }
+      }
+
+      if (Array.isArray(db.cleaningLogs)) {
+        for (const cl of db.cleaningLogs) {
+          const id = cl.id;
+          if (id) {
+            await pgQuery(`
+              INSERT INTO cleaning_logs (id, room_number, data) VALUES ($1, $2, $3)
+              ON CONFLICT (id) DO UPDATE SET room_number = EXCLUDED.room_number, data = EXCLUDED.data;
+            `, [String(id), cl.roomNumber || '', JSON.stringify(cl)]);
+          }
+        }
+      }
+
+    } catch (err: any) {
+      console.error("Error populating relational tables:", err);
+      throw err;
+    }
+  }
+
+  async function ensureAppKvTable() {
+    await ensureAndPopulateRelationalTables({});
+  }
+
+  app.post("/api/pg/configure", async (req, res) => {
+    const { databaseUrl } = req.body || {};
+    if (!databaseUrl || typeof databaseUrl !== 'string') {
+      return res.status(400).json({ success: false, error: "Database URL tidak valid" });
+    }
+    try {
+      updatePoolConfig(databaseUrl.trim());
+      await ensureAppKvTable();
+      const { rows } = await pgQuery("SELECT NOW() as now");
+      res.json({ success: true, message: "Koneksi Aiven PostgreSQL berhasil dikonfigurasi!", time: rows[0]?.now });
+    } catch (err: any) {
+      console.error("Configure Aiven error:", err);
+      res.status(500).json({ success: false, error: err?.message || "Gagal menghubungkan database dengan URL tersebut" });
+    }
+  });
 
   app.get("/api/pg/test", async (_req, res) => {
+    if (!process.env.DATABASE_URL) {
+      return res.status(400).json({ success: false, error: "DATABASE_URL belum dikonfigurasi." });
+    }
     try {
+      await ensureAppKvTable();
       const { rows } = await pgQuery("SELECT NOW() as now");
       res.json({ success: true, message: "Koneksi ke Aiven PostgreSQL berhasil!", time: rows[0]?.now });
     } catch (err: any) {
+      console.error("Test Aiven error:", err);
       res.status(500).json({ success: false, error: err?.message || "Koneksi database gagal" });
     }
   });
 
   app.get("/api/pg/database", async (_req, res) => {
+    if (!process.env.DATABASE_URL) {
+      return res.json({ success: false, notConfigured: true, error: "DATABASE_URL belum dikonfigurasi" });
+    }
     try {
+      await ensureAppKvTable();
       const { rows } = await pgQuery("SELECT value FROM app_kv WHERE key = 'full_database'");
       if (rows.length > 0 && rows[0].value) {
         res.json({ success: true, data: JSON.parse(rows[0].value) });
@@ -2380,22 +2641,22 @@ async function startServer() {
         res.json({ success: true, data: null });
       }
     } catch (err: any) {
+      console.warn("Get database from Aiven warning:", err?.message);
       res.status(500).json({ success: false, error: err?.message });
     }
   });
 
   app.post("/api/pg/database", async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+      return res.json({ success: false, notConfigured: true, error: "DATABASE_URL belum dikonfigurasi" });
+    }
     try {
       const dbData = req.body;
-      const jsonStr = JSON.stringify(dbData);
-      await pgQuery(`
-        INSERT INTO app_kv (key, value, updated_at)
-        VALUES ('full_database', $1, CURRENT_TIMESTAMP)
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;
-      `, [jsonStr]);
-      res.json({ success: true, message: "Database tersimpan di Aiven PostgreSQL" });
+      await ensureAndPopulateRelationalTables(dbData);
+      res.json({ success: true, message: "Seluruh data berhasil disimpan ke tabel relasional Aiven PostgreSQL" });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err?.message });
+      console.error("Save database to Aiven error:", err);
+      res.status(500).json({ success: false, error: err?.message || "Gagal menyimpan ke Aiven PostgreSQL" });
     }
   });
 

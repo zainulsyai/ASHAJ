@@ -303,13 +303,11 @@ export async function syncFullDatabaseToSpreadsheet(db: CompleteStorageDatabase)
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(db),
     });
-    if (pgRes.ok) {
-      const json = await pgRes.json();
-      if (json.success) {
-        return { success: true };
-      }
+    const json = await pgRes.json().catch(() => ({}));
+    if (pgRes.ok && json.success) {
+      return { success: true };
     }
-    return { success: false, error: 'Gagal menyimpan ke Aiven PostgreSQL' };
+    return { success: false, error: json.error || `HTTP ${pgRes.status}: Gagal menyimpan ke Aiven PostgreSQL` };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Gagal mengirim data ke Aiven PostgreSQL' };
   }
