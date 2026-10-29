@@ -276,81 +276,20 @@ export function isVercelOrStaticDeploy(): boolean {
  * Berfungsi sebagai Single Source of Truth utama
  */
 export async function fetchFullDatabaseFromSpreadsheet(): Promise<CompleteStorageDatabase | null> {
-  const cfg = getSpreadsheetConfig();
-  const webAppUrl = 
-    (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.VITE_SHEET_WEBAPP_URL) ||
-    cfg.webAppUrl ||
-    'https://script.google.com/macros/s/AKfycby9Tok8-zgcVsTuXfQBDA0prmRSpUs9kxpeyczsw9SRVjwZBEk6Y8st3tBv7LK7j_X6/exec';
-
-  const maxRetries = 3;
-  let attempt = 0;
-
-  while (attempt < maxRetries) {
-    attempt++;
-    try {
-      // 1. Coba melalui backend Express server proxy jika bukan di hosting statis Vercel
-      if (!isVercelOrStaticDeploy()) {
-        try {
-          const proxyRes = await fetch('/api/sheets/database', {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(12000)
-          });
-          if (proxyRes.ok) {
-            const ct = proxyRes.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-              const json = await proxyRes.json();
-              if ((json.status === 'success' || json.status === 'cached' || json.status === 'fallback') && json.data) {
-                const d = json.data;
-                if (d && typeof d === 'object') {
-                  const normalized = normalizeSpreadsheetPayload(d);
-                  if (normalized.rooms.length > 0 || normalized.buildings.length > 0 || normalized.users.length > 0) {
-                    return normalized;
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn(`Proxy fetch attempt ${attempt} failed:`, e);
-        }
+  try {
+    const pgRes = await fetch('/api/pg/database', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    if (pgRes.ok) {
+      const json = await pgRes.json();
+      if (json.success && json.data) {
+        return normalizeSpreadsheetPayload(json.data);
       }
-
-      // 2. Fallback direct fetch ke Web App Apps Script jika server proxy offline/preview
-      if (webAppUrl) {
-        try {
-          const directRes = await fetch(webAppUrl, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(15000)
-          });
-          if (directRes.ok) {
-            const json = await directRes.json();
-            if (json && json.status !== 'error') {
-              const d = json.data || (Array.isArray(json.buildings) || Array.isArray(json.rooms) ? json : null);
-              if (d && typeof d === 'object') {
-                const normalized = normalizeSpreadsheetPayload(d);
-                if (normalized.rooms.length > 0 || normalized.buildings.length > 0 || normalized.users.length > 0) {
-                  return normalized;
-                }
-              }
-            }
-          }
-        } catch (directErr) {
-          console.warn(`Direct fetch attempt ${attempt} failed:`, directErr);
-        }
-      }
-    } catch (retryErr) {
-      console.warn(`Spreadsheet fetch general attempt ${attempt} error:`, retryErr);
     }
-
-    if (attempt < maxRetries) {
-      // Exponential backoff: 1.5s, 3s
-      const delayMs = attempt * 1500;
-      await new Promise(res => setTimeout(res, delayMs));
-    }
+  } catch (err) {
+    console.warn("Failed to fetch database from Aiven PostgreSQL:", err);
   }
-
   return null;
 }
 
@@ -358,109 +297,22 @@ export async function fetchFullDatabaseFromSpreadsheet(): Promise<CompleteStorag
  * SIMPAN / SINKRONISASIKAN SELURUH DATABASE KE GOOGLE SPREADSHEET
  */
 export async function syncFullDatabaseToSpreadsheet(db: CompleteStorageDatabase): Promise<{ success: boolean; error?: string }> {
-  const cfg = getSpreadsheetConfig();
-
-  const sanitizeSettings = (s: any) => {
-    if (!s || typeof s !== 'object') return null;
-    const copy = { ...s };
-    if (typeof copy.appLogo === 'string' && (copy.appLogo.length > 20000 || copy.appLogo.startsWith('data:image/'))) {
-      copy.appLogo = 'OFFICIAL_LOGO';
-    }
-    if (typeof copy.app_logo === 'string' && (copy.app_logo.length > 20000 || copy.app_logo.startsWith('data:image/'))) {
-      copy.app_logo = 'OFFICIAL_LOGO';
-    }
-    return copy;
-  };
-
-  const safeAppSettings = sanitizeSettings(db.appSettings);
-
-  const rawRoomsList = Array.isArray(db.rooms) ? db.rooms : [];
-  const pureLodgingRooms = rawRoomsList.filter((r: any) => {
-    if (!r) return false;
-    const b = (r.building || "").toLowerCase();
-    const t = (r.type || "").toLowerCase();
-    const id = (r.id || "").toLowerCase();
-    if (id.startsWith("mr-")) return false;
-    if (b.includes("pertemuan") || b.includes("aula") || b.includes("serbaguna")) return false;
-    if (t.includes("pertemuan") || t.includes("aula") || t.includes("serbaguna")) return false;
-    return true;
-  });
-
-  const formattedPayload = {
-    action: 'SAVE_ALL',
-    timestamp: new Date().toISOString(),
-    buildings: Array.isArray(db.buildings) ? db.buildings : [],
-    rooms: pureLodgingRooms,
-    transactions: Array.isArray(db.transactions) ? db.transactions : [],
-    users: Array.isArray(db.users) ? db.users : [],
-    meetingRooms: Array.isArray(db.meetingRooms) ? db.meetingRooms : [],
-    roomCapacityRates: Array.isArray(db.roomCapacityRates) ? db.roomCapacityRates : [],
-    breakfastMenuItems: Array.isArray(db.breakfastMenuItems) ? db.breakfastMenuItems : [],
-    breakfastOrders: Array.isArray(db.breakfastOrders) ? db.breakfastOrders : [],
-    maintenances: Array.isArray(db.maintenances) ? db.maintenances : [],
-    qcInspections: Array.isArray(db.qcInspections) ? db.qcInspections : [],
-    workSessions: Array.isArray(db.workSessions) ? db.workSessions : [],
-    auditLogs: Array.isArray(db.auditLogs) ? db.auditLogs : [],
-    chatChannels: Array.isArray(db.chatChannels) ? db.chatChannels : [],
-    chatMessages: Array.isArray(db.chatMessages) ? db.chatMessages : [],
-    cleaningLogs: Array.isArray(db.cleaningLogs) ? db.cleaningLogs : [],
-    appSettings: safeAppSettings,
-    // Alias snake_case untuk kompatibilitas penuh dengan skrip Google Spreadsheet
-    meeting_rooms: Array.isArray(db.meetingRooms) ? db.meetingRooms : [],
-    room_capacity_rates: Array.isArray(db.roomCapacityRates) ? db.roomCapacityRates : [],
-    breakfast_menu_items: Array.isArray(db.breakfastMenuItems) ? db.breakfastMenuItems : [],
-    breakfast_orders: Array.isArray(db.breakfastOrders) ? db.breakfastOrders : [],
-    qc_inspections: Array.isArray(db.qcInspections) ? db.qcInspections : [],
-    cleaning_logs: Array.isArray(db.cleaningLogs) ? db.cleaningLogs : [],
-    work_sessions: Array.isArray(db.workSessions) ? db.workSessions : [],
-    system_logs: Array.isArray(db.auditLogs) ? db.auditLogs : [],
-    chat_channels: Array.isArray(db.chatChannels) ? db.chatChannels : [],
-    chat_messages: Array.isArray(db.chatMessages) ? db.chatMessages : [],
-    app_settings: safeAppSettings,
-  };
-
-  // 1. Kirim melalui backend server proxy jika ada
-  if (!isVercelOrStaticDeploy()) {
-    try {
-      const proxyRes = await fetch('/api/sheets/database', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formattedPayload,
-          webAppUrl: cfg.webAppUrl || '',
-        })
-      });
-
-      if (proxyRes.ok) {
-        const ct = proxyRes.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          const resJson = await proxyRes.json().catch(() => null);
-          if (resJson && resJson.status === 'success') {
-            return { success: true };
-          }
-        }
-      }
-    } catch (_) {}
-  }
-
-  // 2. Fallback: kirim langsung ke Web App Apps Script
-  if (cfg.webAppUrl) {
-    try {
-      const directRes = await fetch(cfg.webAppUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(formattedPayload)
-      });
-
-      if (directRes.ok) {
+  try {
+    const pgRes = await fetch('/api/pg/database', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(db),
+    });
+    if (pgRes.ok) {
+      const json = await pgRes.json();
+      if (json.success) {
         return { success: true };
       }
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'Gagal mengirim data ke Google Spreadsheet' };
     }
+    return { success: false, error: 'Gagal menyimpan ke Aiven PostgreSQL' };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal mengirim data ke Aiven PostgreSQL' };
   }
-
-  return { success: true };
 }
 
 /**

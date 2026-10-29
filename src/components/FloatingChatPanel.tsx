@@ -660,8 +660,8 @@ export function FloatingChatPanel() {
             <div className="bg-hajj-900/95 text-[10px] text-slate-200 px-3 py-1.5 border-b border-gold-500/20 flex items-center justify-between shrink-0 select-none shadow-inner">
               <div className="flex items-center space-x-2 min-w-0 truncate">
                 <span className="flex items-center space-x-1.5 text-emerald-300 font-semibold truncate">
-                  <i className="fa-solid fa-file-excel text-[10px] text-emerald-400"></i>
-                  <span>Spreadsheet: Tersinkron</span>
+                  <i className="fa-solid fa-database text-[10px] text-emerald-400"></i>
+                  <span>Aiven PostgreSQL: Tersinkron</span>
                 </span>
                 <span className="text-slate-500">•</span>
                 <span className="text-gold-300 font-medium truncate">
@@ -1768,14 +1768,14 @@ export function FloatingChatPanel() {
                   )}
                 </div>
 
-                {/* Database & Google Spreadsheet Guarantee */}
+                {/* Database & Aiven PostgreSQL Guarantee */}
                 <div className="bg-gradient-to-r from-emerald-50 to-blue-50 p-2.5 rounded-xl border border-emerald-200/60 text-[10px] space-y-1">
                   <div className="flex items-center space-x-1.5 text-emerald-800 font-bold">
                     <i className="fa-solid fa-shield-check text-xs text-emerald-600"></i>
-                    <span>Database Google Spreadsheet &amp; Real-Time SSE</span>
+                    <span>Database Aiven PostgreSQL &amp; Real-Time SSE</span>
                   </div>
                   <p className="text-slate-600 leading-relaxed text-[9.5px]">
-                    Riwayat obrolan pesan 2 arah dan rekap jam kerja petugas tersimpan permanen di basis data Google Spreadsheet (lembar <code className="text-emerald-700 font-bold">work_sessions</code> &amp; <code className="text-emerald-700 font-bold">chat_messages</code>).
+                    Riwayat obrolan pesan 2 arah dan rekap jam kerja petugas tersimpan permanen di basis data Aiven PostgreSQL (tabel <code className="text-emerald-700 font-bold">work_sessions</code> &amp; <code className="text-emerald-700 font-bold">chat_messages</code>).
                   </p>
                 </div>
               </div>

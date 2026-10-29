@@ -1203,7 +1203,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentUser?.id, isChatOpen, activeChatChannelId]);
 
   const pullFromCentralDatabase = async () => {
-    showToast('Menarik & menyamakan data dari Google Spreadsheet...', 'info');
+    showToast('Menarik & menyamakan data dari Aiven PostgreSQL...', 'info');
     try {
       const cloudDb = await dataStorage.hydrateFromSpreadsheet(true);
       if (cloudDb) {
@@ -1249,17 +1249,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           transactions: cloudDb.transactions || [],
           maintenances: cloudDb.maintenances || []
         });
-        showToast(`Sinkronisasi Berhasil: ${cloudDb.buildings?.length || 0} Gedung, ${cloudDb.rooms?.length || 0} Kamar, ${cloudDb.transactions?.length || 0} Transaksi termuat dari Spreadsheet.`, 'success');
+        showToast(`Sinkronisasi Berhasil: ${cloudDb.buildings?.length || 0} Gedung, ${cloudDb.rooms?.length || 0} Kamar, ${cloudDb.transactions?.length || 0} Transaksi termuat dari Aiven PostgreSQL.`, 'success');
       } else {
-        showToast('Tidak dapat menarik data dari Google Spreadsheet.', 'warning');
+        showToast('Tidak dapat menarik data dari Aiven PostgreSQL.', 'warning');
       }
     } catch (err: any) {
-      showToast(`Gagal menarik data spreadsheet: ${err?.message || 'Error'}`, 'error');
+      showToast(`Gagal menarik data Aiven PostgreSQL: ${err?.message || 'Error'}`, 'error');
     }
   };
 
   const manualSyncSupabase = async () => {
-    showToast('Menghubungi Google Spreadsheet...', 'info');
+    showToast('Menghubungi Aiven PostgreSQL...', 'info');
     try {
       const cloudDb = await dataStorage.hydrateFromSpreadsheet(true);
       if (cloudDb) {
@@ -1306,9 +1306,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSupabaseSyncState(dataStorage.getSpreadsheetSyncState());
         await verifyDatabaseChecksum(true);
         if (pushRes.success) {
-          showToast('Data berhasil disimpan ke Google Spreadsheet!', 'success');
+          showToast('Data berhasil disimpan ke Aiven PostgreSQL!', 'success');
         } else {
-          showToast(`Koneksi Spreadsheet: ${pushRes.error || 'Terhubung'}`, 'warning');
+          showToast(`Koneksi Aiven PostgreSQL: ${pushRes.error || 'Terhubung'}`, 'warning');
         }
       }
     } catch (err: any) {
@@ -1317,14 +1317,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const pushAllToSupabase = async () => {
-    showToast('Mengunggah seluruh basis data ke Google Spreadsheet...', 'info');
+    showToast('Mengunggah seluruh basis data ke Aiven PostgreSQL...', 'info');
     const res = await dataStorage.pushAllToSpreadsheet();
     setSupabaseSyncState(dataStorage.getSpreadsheetSyncState());
     await verifyDatabaseChecksum(true);
     if (res.success) {
-      showToast('Seluruh data berhasil disimpan & diverifikasi dengan Google Spreadsheet!', 'success');
+      showToast('Seluruh data berhasil disimpan & diverifikasi dengan Aiven PostgreSQL!', 'success');
     } else {
-      showToast(`Gagal mengunggah ke Spreadsheet: ${res.error || 'Error'}`, 'error');
+      showToast(`Gagal mengunggah ke Aiven PostgreSQL: ${res.error || 'Error'}`, 'error');
     }
   };
 

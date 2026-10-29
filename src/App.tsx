@@ -119,7 +119,7 @@ const TAB_PERMISSIONS: Record<string, { title: string; roles: string[] }> = {
     roles: ['Super Admin', 'Admin']
   },
   spreadsheetSync: {
-    title: 'Google Spreadsheet',
+    title: 'Aiven PostgreSQL',
     roles: ['Super Admin', 'Admin']
   }
 };
@@ -191,7 +191,7 @@ function MainApp() {
             {resolvedTab === 'laporanKamar' && <ReportsView />}
             {resolvedTab === 'laporanMaintenance' && <MaintenanceReportsView />}
             {resolvedTab === 'pesananSarapan' && <BreakfastOrdersView />}
-            {resolvedTab === 'auditLog' && <AuditLogView defaultSubView={activeTab === 'spreadsheetSync' ? 'SPREADSHEET_MGMT' : undefined} />}
+            {resolvedTab === 'auditLog' && <AuditLogView defaultSubView={activeTab === 'spreadsheetSync' ? 'AIVEN_PG_MGMT' : undefined} />}
             {resolvedTab === 'verifyPdf' && <AuditLogView defaultSubView="PDF_DOWNLOAD_LOGS" />}
             {resolvedTab === 'kelolaAnggota' && <UserManagementView />}
           </div>

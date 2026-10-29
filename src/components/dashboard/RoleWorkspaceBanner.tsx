@@ -134,8 +134,8 @@ export function RoleWorkspaceBanner({
                   supabaseSyncState?.lastError
                     ? `Gangguan sinkronisasi: ${supabaseSyncState.lastError}`
                     : lastSyncFormatted
-                    ? `Terhubung ke Google Spreadsheet (Sinkron terakhir pukul ${lastSyncFormatted} WIB)`
-                    : 'Terhubung langsung dengan Database Google Spreadsheet'
+                    ? `Terhubung ke Aiven PostgreSQL (Sinkron terakhir pukul ${lastSyncFormatted} WIB)`
+                    : 'Terhubung langsung dengan Database Aiven PostgreSQL'
                 }
                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1.5 shadow-2xs ${
                   supabaseSyncState?.isSyncing
@@ -148,20 +148,20 @@ export function RoleWorkspaceBanner({
                 {supabaseSyncState?.isSyncing ? (
                   <>
                     <i className="fa-solid fa-arrows-rotate fa-spin text-[9px] text-blue-300"></i>
-                    <span>Sync Spreadsheet: Menyinkronkan...</span>
+                    <span>Aiven DB: Menyinkronkan...</span>
                   </>
                 ) : supabaseSyncState?.lastError ? (
                   <>
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
                     <i className="fa-solid fa-triangle-exclamation text-[9px] text-rose-300"></i>
-                    <span>Sync Spreadsheet: Gangguan Koneksi</span>
+                    <span>Aiven DB: Gangguan Koneksi</span>
                   </>
                 ) : (
                   <>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                    <i className="fa-solid fa-file-excel text-[9px] text-emerald-300"></i>
+                    <i className="fa-solid fa-database text-[9px] text-emerald-300"></i>
                     <span>
-                      Sync Spreadsheet: Terhubung
+                      Aiven PostgreSQL: Terhubung
                       {lastSyncFormatted ? ` (${lastSyncFormatted})` : ''}
                     </span>
                   </>

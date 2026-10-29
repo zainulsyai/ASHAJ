@@ -1980,7 +1980,7 @@ export function DeleteConfirmModal({ isOpen, onClose, title, itemName, itemType,
           </p>
           <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-200 text-[11px] text-rose-800 font-medium leading-relaxed">
             <i className="fa-solid fa-triangle-exclamation mr-1.5 text-rose-600"></i>
-            Tindakan ini akan menghapus data tersebut secara permanen dari Database Pusat (Google Spreadsheet) dan tidak dapat dibatalkan.
+            Tindakan ini akan menghapus data tersebut secara permanen dari Database Pusat (Aiven PostgreSQL) dan tidak dapat dibatalkan.
           </div>
         </div>
 

@@ -2354,6 +2354,65 @@ async function startServer() {
   // AIVEN POSTGRESQL API ENDPOINTS (MIGRATION FROM GOOGLE SHEETS)
   // =========================================================================
 
+  pgQuery(`
+    CREATE TABLE IF NOT EXISTS app_kv (
+      key VARCHAR(255) PRIMARY KEY,
+      value TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `).catch(() => {});
+
+  app.get("/api/pg/test", async (_req, res) => {
+    try {
+      const { rows } = await pgQuery("SELECT NOW() as now");
+      res.json({ success: true, message: "Koneksi ke Aiven PostgreSQL berhasil!", time: rows[0]?.now });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message || "Koneksi database gagal" });
+    }
+  });
+
+  app.get("/api/pg/database", async (_req, res) => {
+    try {
+      const { rows } = await pgQuery("SELECT value FROM app_kv WHERE key = 'full_database'");
+      if (rows.length > 0 && rows[0].value) {
+        res.json({ success: true, data: JSON.parse(rows[0].value) });
+      } else {
+        res.json({ success: true, data: null });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message });
+    }
+  });
+
+  app.post("/api/pg/database", async (req, res) => {
+    try {
+      const dbData = req.body;
+      const jsonStr = JSON.stringify(dbData);
+      await pgQuery(`
+        INSERT INTO app_kv (key, value, updated_at)
+        VALUES ('full_database', $1, CURRENT_TIMESTAMP)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;
+      `, [jsonStr]);
+      res.json({ success: true, message: "Database tersimpan di Aiven PostgreSQL" });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message });
+    }
+  });
+
+  app.delete("/api/pg/:table/:id", async (req, res) => {
+    const { table, id } = req.params;
+    const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "");
+    if (!sanitizedTable) {
+      return res.status(400).json({ success: false, error: "Invalid table name" });
+    }
+    try {
+      await pgQuery(`DELETE FROM ${sanitizedTable} WHERE id = $1 OR nomor_porsi = $1 OR nomor_kamar = $1`, [id]);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err?.message });
+    }
+  });
+
   app.get("/api/pg/:table", async (req, res) => {
     const { table } = req.params;
     const sanitizedTable = table.replace(/[^a-zA-Z0-9_]/g, "");

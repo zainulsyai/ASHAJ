@@ -341,7 +341,7 @@ export function Header() {
                           </div>
                           <div>
                             <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">Status Sync Database</span>
-                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold block">Google Spreadsheet Utama</span>
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold block">Aiven PostgreSQL</span>
                           </div>
                         </div>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1 shrink-0 ${
@@ -381,21 +381,21 @@ export function Header() {
                       </div>
                     </div>
 
-                    {/* 3c. Integrasi Google Spreadsheet (Khusus Admin & Super Admin) */}
+                    {/* 3c. Integrasi Aiven PostgreSQL (Khusus Admin & Super Admin) */}
                     {currentUser && (isSuperAdmin(currentUser.role) || currentUser.role === 'Admin') && (
                       <div className="p-3 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-600/70 rounded-xl space-y-2 shadow-2xs">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-300 flex items-center justify-center text-xs shrink-0">
-                              <i className="fa-solid fa-file-excel"></i>
+                              <i className="fa-solid fa-database"></i>
                             </div>
                             <div>
-                              <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">Google Spreadsheet</span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-300 block">Baca &amp; Sinkronisasi Data Sheet</span>
+                              <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">Aiven PostgreSQL</span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-300 block">Basis Data Utama Cloud SSL</span>
                             </div>
                           </div>
                           <span className="text-[9px] bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold border border-emerald-300 dark:border-emerald-700">
-                            Apps Script
+                            PostgreSQL
                           </span>
                         </div>
                         <button
@@ -407,7 +407,7 @@ export function Header() {
                           className="w-full py-1.5 px-3 bg-emerald-50 dark:bg-slate-700 hover:bg-emerald-100 dark:hover:bg-slate-600 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-500 rounded-lg text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer shadow-xs"
                         >
                           <i className="fa-solid fa-arrow-right-to-bracket text-emerald-600 dark:text-emerald-400"></i>
-                          <span>Buka Panel Google Spreadsheet</span>
+                          <span>Buka Panel Aiven PostgreSQL</span>
                         </button>
                       </div>
                     )}

@@ -9,6 +9,7 @@ import { useBodyScrollLock } from '../lib/scrollLock';
 import { VerifyPdfView } from './VerifyPdfView';
 import { RolePermissionsSection } from './RolePermissionsSection';
 import { SpreadsheetIntegrationView } from './SpreadsheetIntegrationView';
+import { AivenDatabaseView } from './AivenDatabaseView';
 import { getDirectChannelId } from '../chatData';
 
 export function ReportsView() {
@@ -3891,7 +3892,7 @@ export function BreakfastOrdersView() {
   );
 }
 
-export function AuditLogView({ defaultSubView }: { defaultSubView?: 'WORK_SESSIONS' | 'ROLE_PERMISSIONS' | 'AUDIT_TRAIL' | 'PDF_DOWNLOAD_LOGS' | 'DATABASE_MGMT' | 'SPREADSHEET_MGMT' } = {}) {
+export function AuditLogView({ defaultSubView }: { defaultSubView?: 'WORK_SESSIONS' | 'ROLE_PERMISSIONS' | 'AUDIT_TRAIL' | 'PDF_DOWNLOAD_LOGS' | 'DATABASE_MGMT' | 'SPREADSHEET_MGMT' | 'AIVEN_PG_MGMT' } = {}) {
   const { 
     auditLogs = [], workSessions = [], currentUser, showToast, openModal, login,
     exportDatabaseBackup, importDatabaseBackup, resetDatabase, clearWorkSessions, clearAuditLogs,
@@ -3924,15 +3925,13 @@ export function AuditLogView({ defaultSubView }: { defaultSubView?: 'WORK_SESSIO
   const [customEndDate, setCustomEndDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  // Tab within this view: 'WORK_SESSIONS' | 'ROLE_PERMISSIONS' | 'AUDIT_TRAIL' | 'DATABASE_MGMT' | 'SPREADSHEET_MGMT'
+  // Tab within this view: 'WORK_SESSIONS' | 'ROLE_PERMISSIONS' | 'AUDIT_TRAIL' | 'AIVEN_PG_MGMT'
   const canAccessAdminTabs = Boolean(currentUser && (isSuperAdmin(currentUser.role) || currentUser.role === 'Admin'));
-  const [activeSubView, setActiveSubView] = useState<'WORK_SESSIONS' | 'ROLE_PERMISSIONS' | 'AUDIT_TRAIL' | 'DATABASE_MGMT' | 'SPREADSHEET_MGMT'>(
+  const [activeSubView, setActiveSubView] = useState<'WORK_SESSIONS' | 'ROLE_PERMISSIONS' | 'AUDIT_TRAIL' | 'DATABASE_MGMT' | 'SPREADSHEET_MGMT' | 'AIVEN_PG_MGMT'>(
     defaultSubView === 'ROLE_PERMISSIONS' && canAccessAdminTabs
       ? 'ROLE_PERMISSIONS'
-      : defaultSubView === 'DATABASE_MGMT' && canAccessAdminTabs
-      ? 'DATABASE_MGMT'
-      : defaultSubView === 'SPREADSHEET_MGMT' && canAccessAdminTabs
-      ? 'SPREADSHEET_MGMT'
+      : (defaultSubView === 'AIVEN_PG_MGMT' || defaultSubView === 'DATABASE_MGMT' || defaultSubView === 'SPREADSHEET_MGMT') && canAccessAdminTabs
+      ? 'AIVEN_PG_MGMT'
       : defaultSubView === 'AUDIT_TRAIL' || defaultSubView === 'PDF_DOWNLOAD_LOGS'
       ? 'AUDIT_TRAIL'
       : 'WORK_SESSIONS'
@@ -3940,7 +3939,7 @@ export function AuditLogView({ defaultSubView }: { defaultSubView?: 'WORK_SESSIO
 
   // Pastikan jika beralih ke akun selain Admin / Super Admin, tab khusus Admin otomatis kembali ke WORK_SESSIONS
   useEffect(() => {
-    if (!canAccessAdminTabs && (activeSubView === 'ROLE_PERMISSIONS' || activeSubView === 'DATABASE_MGMT' || activeSubView === 'SPREADSHEET_MGMT')) {
+    if (!canAccessAdminTabs && (activeSubView === 'ROLE_PERMISSIONS' || activeSubView === 'DATABASE_MGMT' || activeSubView === 'SPREADSHEET_MGMT' || activeSubView === 'AIVEN_PG_MGMT')) {
       setActiveSubView('WORK_SESSIONS');
     }
   }, [canAccessAdminTabs, activeSubView]);
@@ -4816,31 +4815,17 @@ export function AuditLogView({ defaultSubView }: { defaultSubView?: 'WORK_SESSIO
           </button>
 
           {canAccessAdminTabs && (
-            <>
-              <button
-                onClick={() => setActiveSubView('DATABASE_MGMT')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 ${
-                  activeSubView === 'DATABASE_MGMT' 
-                    ? 'bg-white text-emerald-800 shadow-xs font-black' 
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                <i className="fa-solid fa-database text-emerald-600"></i>
-                <span>Basis Data</span>
-              </button>
-
-              <button
-                onClick={() => setActiveSubView('SPREADSHEET_MGMT')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 ${
-                  activeSubView === 'SPREADSHEET_MGMT' 
-                    ? 'bg-white text-emerald-800 shadow-xs font-black' 
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                }`}
-              >
-                <i className="fa-solid fa-file-excel text-emerald-600"></i>
-                <span>Google Spreadsheet</span>
-              </button>
-            </>
+            <button
+              onClick={() => setActiveSubView('AIVEN_PG_MGMT')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 ${
+                activeSubView === 'AIVEN_PG_MGMT' || activeSubView === 'DATABASE_MGMT' || activeSubView === 'SPREADSHEET_MGMT'
+                  ? 'bg-white text-emerald-800 shadow-xs font-black' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <i className="fa-solid fa-database text-emerald-600"></i>
+              <span>Aiven PostgreSQL</span>
+            </button>
           )}
         </div>
 
@@ -6325,8 +6310,10 @@ export function AuditLogView({ defaultSubView }: { defaultSubView?: 'WORK_SESSIO
             </div>
           )}
         </div>
-      ) : activeSubView === 'DATABASE_MGMT' ? (
-        /* Pusat Manajemen Basis Data (Google Spreadsheet) */
+      ) : activeSubView === 'AIVEN_PG_MGMT' || activeSubView === 'DATABASE_MGMT' || activeSubView === 'SPREADSHEET_MGMT' ? (
+        <AivenDatabaseView />
+      ) : false ? (
+        /* Pusat Manajemen Basis Data Lama */
         <div className="space-y-5 animate-in fade-in duration-200">
           {/* Unified Central Database Banner & Real-Time Sync Control */}
           <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white p-6 rounded-2xl shadow-lg border border-emerald-500/30 relative overflow-hidden">
