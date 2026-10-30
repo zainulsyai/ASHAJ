@@ -19,8 +19,8 @@ export function getPool() {
       connectionString,
       ssl: { rejectUnauthorized: false },
       max: 5,                  // Dibatasi max 5 koneksi untuk plan Aiven free/small
-      idleTimeoutMillis: 10000, // Putus koneksi menganggur setelah 10 detik
-      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30000, // Putus koneksi menganggur setelah 30 detik
+      connectionTimeoutMillis: 30000, // 30 detik timeout untuk mencegah timeout exceeded
     });
     currentPool.on('error', (err: any) => {
       console.error('Unexpected error on idle PostgreSQL client:', err);
@@ -40,8 +40,8 @@ export async function query(text: string, params?: any[]) {
       connectionString,
       ssl: { rejectUnauthorized: false },
       max: 5,
-      idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 30000,
     });
     pool = currentPool;
   }

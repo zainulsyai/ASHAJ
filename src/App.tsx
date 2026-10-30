@@ -8,7 +8,7 @@ import { ReportsView, MaintenanceReportsView, AuditLogView, BreakfastOrdersView 
 import { QualityControlView } from './components/QualityControlView';
 import { BuildingStaffView } from './components/BuildingStaffView';
 import { UserManagementView } from './components/UserManagementView';
-import { SpreadsheetIntegrationView } from './components/SpreadsheetIntegrationView';
+import { AivenDatabaseView } from './components/AivenDatabaseView';
 import { Modals } from './components/Modals';
 import { FloatingChatPanel } from './components/FloatingChatPanel';
 
@@ -146,10 +146,9 @@ function MainApp() {
     activeTab === 'rooms' ? 'gedung' :
     activeTab === 'qc' ? 'qualityControl' :
     activeTab === 'maintenance' ? 'laporanMaintenance' :
-    activeTab === 'spreadsheetSync' ? 'auditLog' :
     activeTab;
 
-  const currentTabConfig = TAB_PERMISSIONS[resolvedTab];
+  const currentTabConfig = TAB_PERMISSIONS[activeTab];
   const isTabAllowed = !currentTabConfig || currentTabConfig.roles.includes(currentUser.role);
 
   return (
@@ -183,17 +182,18 @@ function MainApp() {
             />
           </div>
         ) : (
-          <div key={resolvedTab} className="animate-in fade-in duration-200">
-            {resolvedTab === 'dashboard' && <Dashboard />}
-            {resolvedTab === 'gedung' && <RoomsView />}
-            {resolvedTab === 'qualityControl' && <QualityControlView />}
-            {resolvedTab === 'buildingStaff' && <BuildingStaffView />}
-            {resolvedTab === 'laporanKamar' && <ReportsView />}
-            {resolvedTab === 'laporanMaintenance' && <MaintenanceReportsView />}
-            {resolvedTab === 'pesananSarapan' && <BreakfastOrdersView />}
-            {resolvedTab === 'auditLog' && <AuditLogView defaultSubView={activeTab === 'spreadsheetSync' ? 'AIVEN_PG_MGMT' : undefined} />}
-            {resolvedTab === 'verifyPdf' && <AuditLogView defaultSubView="PDF_DOWNLOAD_LOGS" />}
-            {resolvedTab === 'kelolaAnggota' && <UserManagementView />}
+          <div key={activeTab} className="animate-in fade-in duration-200">
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'gedung' && <RoomsView />}
+            {activeTab === 'qualityControl' && <QualityControlView />}
+            {activeTab === 'buildingStaff' && <BuildingStaffView />}
+            {activeTab === 'laporanKamar' && <ReportsView />}
+            {activeTab === 'laporanMaintenance' && <MaintenanceReportsView />}
+            {activeTab === 'pesananSarapan' && <BreakfastOrdersView />}
+            {activeTab === 'auditLog' && <AuditLogView />}
+            {activeTab === 'verifyPdf' && <AuditLogView defaultSubView="PDF_DOWNLOAD_LOGS" />}
+            {activeTab === 'kelolaAnggota' && <UserManagementView />}
+            {activeTab === 'spreadsheetSync' && <AivenDatabaseView />}
           </div>
         )}
       </main>
