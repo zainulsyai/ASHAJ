@@ -4931,23 +4931,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUsers(db.users);
       setBuildings(db.buildings || []);
       setMeetingRooms(db.meetingRooms || []);
-      setRooms(db.rooms);
+      setRooms(db.rooms || []);
       setTransactions([]);
       setMaintenances([]);
       setAuditLogs([]);
       setWorkSessions([]);
       setQcInspections([]);
       setActiveSessionId(null);
-      setChatChannels(db.chatChannels);
+      setChatChannels(db.chatChannels || []);
       setChatMessages([]);
-      setBreakfastMenuItems(db.breakfastMenuItems);
+      setBreakfastMenuItems(db.breakfastMenuItems || []);
       setBreakfastOrders([]);
-      setRoomCapacityRates(db.roomCapacityRates || dataStorage.getRoomCapacityRates());
+      setRoomCapacityRates(db.roomCapacityRates || []);
       if (db.users && db.users.length > 0) {
         setCurrentUser(db.users[0]);
       }
       
-      // Kirim pembersihan dan data awal ke Google Spreadsheet
+      // Kirim pembersihan dan data awal ke Aiven PostgreSQL / Server
       await dataStorage.pushAllToSpreadsheet(db);
       await verifyDatabaseChecksum(true, {
         buildings: db.buildings || [],
@@ -4956,7 +4956,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         transactions: [],
         maintenances: []
       });
-      showToast('Basis data berhasil direset! Seluruh master data telah bersih dan disinkronkan ke Google Spreadsheet.', 'success');
+      showToast('Basis data berhasil direset! Seluruh data transaksi, kamar, gedung, dan log telah bersih.', 'success');
     } catch (err: any) {
       showToast(`Gagal mereset database: ${err?.message || 'Error'}`, 'error');
     }

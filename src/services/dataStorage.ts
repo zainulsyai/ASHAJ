@@ -119,10 +119,33 @@ export const defaultAppSettings: AppSettings = {
   tagTitle: 'SIM - Asrama Haji Jakarta'
 };
 
-export function generateInitialDatabase(onlyAdmin: boolean = false): CompleteStorageDatabase {
-  const usersList = onlyAdmin
-    ? initialUsers.filter(u => u.role === 'Super Admin' || u.role === 'Admin' || u.username.toLowerCase() === 'superadmin' || u.username.toLowerCase() === 'admin')
-    : [...initialUsers];
+export function generateInitialDatabase(_onlyAdmin: boolean = false): CompleteStorageDatabase {
+  const usersList: User[] = [
+    { 
+      id: 'u-superadmin', 
+      username: 'superadmin', 
+      fullName: 'Administrator Management', 
+      role: 'Super Admin', 
+      password: '12345',
+      department: 'Pimpinan & IT UPT',
+      supervisorId: null,
+      assignedBuilding: 'Semua Gedung', 
+      phone: '081211112222', 
+      status: 'Aktif' 
+    },
+    { 
+      id: 'u-admin', 
+      username: 'admin', 
+      fullName: 'Administrasi Operasional', 
+      role: 'Admin', 
+      password: '12345',
+      department: 'Administrasi & Pelayanan UPT',
+      supervisorId: null,
+      assignedBuilding: 'Semua Gedung', 
+      phone: '081233334444', 
+      status: 'Aktif' 
+    }
+  ];
 
   return {
     schemaVersion: 4,
@@ -130,19 +153,19 @@ export function generateInitialDatabase(onlyAdmin: boolean = false): CompleteSto
     exportedAt: new Date().toISOString(),
     appSettings: { ...defaultAppSettings },
     users: usersList,
-    buildings: [...initialBuildings],
-    meetingRooms: [...initialMeetingRooms],
-    rooms: getInitialRooms(),
-    transactions: [...initialTransactions],
+    buildings: [],
+    meetingRooms: [],
+    rooms: [],
+    transactions: [],
     maintenances: [],
     qcInspections: [],
     workSessions: [],
     auditLogs: [],
-    chatChannels: [...initialChatChannels],
+    chatChannels: [],
     chatMessages: [],
-    breakfastMenuItems: [...initialBreakfastMenuItems],
+    breakfastMenuItems: [],
     breakfastOrders: [],
-    roomCapacityRates: [...initialRoomCapacityRates],
+    roomCapacityRates: [],
     passwordResetRequests: [],
     cleaningLogs: []
   };
@@ -185,12 +208,12 @@ export class DataStorageService {
       const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.rooms) && parsed.rooms.length > 0) {
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.rooms)) {
           if (Array.isArray(parsed.workSessions)) {
             parsed.workSessions = parsed.workSessions.filter((s: any) => s && s.id && !this.deletedWorkSessionIds.has(s.id));
           }
-          if (!Array.isArray(parsed.transactions) || parsed.transactions.length === 0) {
-            parsed.transactions = [...initialTransactions];
+          if (!Array.isArray(parsed.transactions)) {
+            parsed.transactions = [];
           }
           return parsed;
         }
@@ -1567,8 +1590,8 @@ export class DataStorageService {
   // ==========================================
   public getRoomCapacityRates(): RoomCapacityRate[] {
     const db = this.getDatabase();
-    if (!Array.isArray(db.roomCapacityRates) || db.roomCapacityRates.length === 0) {
-      return [...initialRoomCapacityRates];
+    if (!Array.isArray(db.roomCapacityRates)) {
+      return [];
     }
     const seenRateIds = new Set<string>();
     const seenCombos = new Set<string>();
@@ -2212,17 +2235,22 @@ export class DataStorageService {
   }
 
   public resetDatabaseToDefaults(_ns?: any): CompleteStorageDatabase {
-    // Reset basis data lokal dan HANYA menyisakan akun Super Admin serta data master bersih
-    // Default kosongkan data aktivitas, shift, QC, pesanan, dan transaksi
     const initDb = generateInitialDatabase(true);
-    initDb.rooms = getInitialRooms();
+    initDb.buildings = [];
+    initDb.rooms = [];
+    initDb.meetingRooms = [];
     initDb.auditLogs = [];
     initDb.workSessions = [];
     initDb.qcInspections = [];
     initDb.transactions = [];
     initDb.maintenances = [];
     initDb.breakfastOrders = [];
+    initDb.breakfastMenuItems = [];
+    initDb.roomCapacityRates = [];
+    initDb.chatChannels = [];
     initDb.chatMessages = [];
+    initDb.cleaningLogs = [];
+    initDb.passwordResetRequests = [];
 
     // Hapus total key cadangan lama agar data usang tidak pernah bangkit kembali
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -2236,7 +2264,7 @@ export class DataStorageService {
 
     this.cache = initDb;
     this.saveDatabase(initDb);
-    // Segera dorong reset bersih ke Google Spreadsheet
+    // Segera dorong reset bersih ke Aiven PostgreSQL / Server
     this.pushAllToSpreadsheet(initDb).catch(() => {});
     return initDb;
   }

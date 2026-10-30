@@ -280,7 +280,7 @@ export const initialUsers: User[] = [
     { 
         id: 'u-superadmin', 
         username: 'superadmin', 
-        fullName: 'Ahmad Faisal (Super Admin)', 
+        fullName: 'Administrator Management', 
         role: 'Super Admin', 
         password: '12345',
         department: 'Pimpinan & IT UPT',
@@ -292,37 +292,13 @@ export const initialUsers: User[] = [
     { 
         id: 'u-admin', 
         username: 'admin', 
-        fullName: 'Administrator Operasional (Admin)', 
+        fullName: 'Administrasi Operasional', 
         role: 'Admin', 
         password: '12345',
         department: 'Administrasi & Pelayanan UPT',
         supervisorId: null,
         assignedBuilding: 'Semua Gedung', 
         phone: '081233334444', 
-        status: 'Aktif' 
-    },
-    { 
-        id: 'u-petugas-gedung', 
-        username: 'petugas.gedung', 
-        fullName: 'Bambang Irawan (Petugas Gedung)', 
-        role: 'Petugas Gedung', 
-        password: '12345',
-        department: 'Petugas Gedung & Housekeeping',
-        supervisorId: 'u-admin',
-        assignedBuilding: 'Semua Gedung', 
-        phone: '081255556666', 
-        status: 'Aktif' 
-    },
-    { 
-        id: 'u-mgr-gedung', 
-        username: 'manager.gedung', 
-        fullName: 'H. Suryadi (Manager Petugas Gedung)', 
-        role: 'Manager Petugas Gedung', 
-        password: '12345',
-        department: 'Petugas Gedung & Housekeeping',
-        supervisorId: 'u-superadmin',
-        assignedBuilding: 'Semua Gedung', 
-        phone: '081277778888', 
         status: 'Aktif' 
     }
 ];

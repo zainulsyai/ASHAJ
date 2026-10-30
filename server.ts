@@ -2874,6 +2874,8 @@ async function startServer() {
         const bIds = db.buildings.map((b: any) => String(b.id || b.name)).filter(Boolean);
         if (bIds.length > 0) {
           await pgQuery(`DELETE FROM buildings WHERE id NOT IN (${bIds.map((_, i) => `$${i + 1}`).join(', ')})`, bIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM buildings`).catch(() => {});
         }
         for (const b of db.buildings) {
           const id = b.id || b.name;
@@ -2925,6 +2927,8 @@ async function startServer() {
         const rIds = db.rooms.map((r: any) => String(r.id || r.roomNumber)).filter(Boolean);
         if (rIds.length > 0) {
           await pgQuery(`DELETE FROM rooms WHERE id NOT IN (${rIds.map((_, i) => `$${i + 1}`).join(', ')})`, rIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM rooms`).catch(() => {});
         }
         for (const r of db.rooms) {
           const id = r.id || r.roomNumber || r.number;
@@ -2996,6 +3000,8 @@ async function startServer() {
         const tIds = db.transactions.map((t: any) => String(t.id)).filter(Boolean);
         if (tIds.length > 0) {
           await pgQuery(`DELETE FROM transactions WHERE id NOT IN (${tIds.map((_, i) => `$${i + 1}`).join(', ')})`, tIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM transactions`).catch(() => {});
         }
         for (const t of db.transactions) {
           const id = t.id || t.transactionId;
@@ -3113,6 +3119,8 @@ async function startServer() {
         const uIds = db.users.map((u: any) => String(u.id || u.username)).filter(Boolean);
         if (uIds.length > 0) {
           await pgQuery(`DELETE FROM users WHERE id NOT IN (${uIds.map((_, i) => `$${i + 1}`).join(', ')})`, uIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM users WHERE username NOT IN ('superadmin', 'admin') AND id NOT IN ('u-superadmin', 'u-admin')`).catch(() => {});
         }
         for (const u of db.users) {
           const id = u.id || u.username;
@@ -3162,6 +3170,8 @@ async function startServer() {
         const mIds = db.maintenances.map((m: any) => String(m.id)).filter(Boolean);
         if (mIds.length > 0) {
           await pgQuery(`DELETE FROM maintenances WHERE id NOT IN (${mIds.map((_, i) => `$${i + 1}`).join(', ')})`, mIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM maintenances`).catch(() => {});
         }
         for (const m of db.maintenances) {
           const id = m.id;
@@ -3219,6 +3229,8 @@ async function startServer() {
         const qIds = db.qcInspections.map((q: any) => String(q.id)).filter(Boolean);
         if (qIds.length > 0) {
           await pgQuery(`DELETE FROM qc_inspections WHERE id NOT IN (${qIds.map((_, i) => `$${i + 1}`).join(', ')})`, qIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM qc_inspections`).catch(() => {});
         }
         for (const qc of db.qcInspections) {
           const id = qc.id;
@@ -3268,6 +3280,8 @@ async function startServer() {
         const mrIds = db.meetingRooms.map((mr: any) => String(mr.id)).filter(Boolean);
         if (mrIds.length > 0) {
           await pgQuery(`DELETE FROM meeting_rooms WHERE id NOT IN (${mrIds.map((_, i) => `$${i + 1}`).join(', ')})`, mrIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM meeting_rooms`).catch(() => {});
         }
         for (const mr of db.meetingRooms) {
           const id = mr.id;
@@ -3323,6 +3337,8 @@ async function startServer() {
         const boIds = db.breakfastOrders.map((bo: any) => String(bo.id)).filter(Boolean);
         if (boIds.length > 0) {
           await pgQuery(`DELETE FROM breakfast_orders WHERE id NOT IN (${boIds.map((_, i) => `$${i + 1}`).join(', ')})`, boIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM breakfast_orders`).catch(() => {});
         }
         for (const bo of db.breakfastOrders) {
           const id = bo.id;
@@ -3379,6 +3395,8 @@ async function startServer() {
         const bmiIds = db.breakfastMenuItems.map((bmi: any) => String(bmi.id)).filter(Boolean);
         if (bmiIds.length > 0) {
           await pgQuery(`DELETE FROM breakfast_menu_items WHERE id NOT IN (${bmiIds.map((_, i) => `$${i + 1}`).join(', ')})`, bmiIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM breakfast_menu_items`).catch(() => {});
         }
         for (const bmi of db.breakfastMenuItems) {
           const id = bmi.id;
@@ -3416,6 +3434,8 @@ async function startServer() {
         const rcrIds = db.roomCapacityRates.map((rcr: any) => String(rcr.id)).filter(Boolean);
         if (rcrIds.length > 0) {
           await pgQuery(`DELETE FROM room_capacity_rates WHERE id NOT IN (${rcrIds.map((_, i) => `$${i + 1}`).join(', ')})`, rcrIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM room_capacity_rates`).catch(() => {});
         }
         for (const rcr of db.roomCapacityRates) {
           const id = rcr.id;
@@ -3453,6 +3473,12 @@ async function startServer() {
 
       // 11. WORK SESSIONS
       if (Array.isArray(db.workSessions)) {
+        const wsIds = db.workSessions.map((ws: any) => String(ws.id)).filter(Boolean);
+        if (wsIds.length > 0) {
+          await pgQuery(`DELETE FROM work_sessions WHERE id NOT IN (${wsIds.map((_, i) => `$${i + 1}`).join(', ')})`, wsIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM work_sessions`).catch(() => {});
+        }
         for (const ws of db.workSessions) {
           const id = ws.id;
           if (id) {
@@ -3466,6 +3492,12 @@ async function startServer() {
 
       // 12. AUDIT LOGS
       if (Array.isArray(db.auditLogs)) {
+        const alIds = db.auditLogs.map((al: any) => String(al.id)).filter(Boolean);
+        if (alIds.length > 0) {
+          await pgQuery(`DELETE FROM audit_logs WHERE id NOT IN (${alIds.map((_, i) => `$${i + 1}`).join(', ')})`, alIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM audit_logs`).catch(() => {});
+        }
         for (const al of db.auditLogs.slice(0, 150)) {
           const id = al.id;
           if (id) {
@@ -3482,6 +3514,8 @@ async function startServer() {
         const clIds = db.cleaningLogs.map((cl: any) => String(cl.id)).filter(Boolean);
         if (clIds.length > 0) {
           await pgQuery(`DELETE FROM cleaning_logs WHERE id NOT IN (${clIds.map((_, i) => `$${i + 1}`).join(', ')})`, clIds).catch(() => {});
+        } else {
+          await pgQuery(`DELETE FROM cleaning_logs`).catch(() => {});
         }
         for (const cl of db.cleaningLogs) {
           const id = cl.id;
