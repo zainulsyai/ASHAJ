@@ -2264,7 +2264,9 @@ export class DataStorageService {
 
     this.cache = initDb;
     this.saveDatabase(initDb);
-    // Segera dorong reset bersih ke Aiven PostgreSQL / Server
+    try {
+      fetch('/api/reset-database', { method: 'POST' }).catch(() => {});
+    } catch (_) {}
     this.pushAllToSpreadsheet(initDb).catch(() => {});
     return initDb;
   }
